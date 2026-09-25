@@ -1,0 +1,13 @@
+# Bí mật - KHÔNG BAO GIỜ commit
+.env
+
+# Dependencies & build
+node_modules/
+dist/
+build/
+coverage/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
