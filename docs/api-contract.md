@@ -2,36 +2,29 @@
 
 ## 1. Danh sách Endpoint
 
-| **Phương thức** | **Đường dẫn**                        | **Mục đích**                                      | **User Story**     |
-|-----------------|--------------------------------------|---------------------------------------------------|--------------------|
-| GET             | /api/customers?phone={phone}         | Tra cứu khách hàng theo SĐT                       | US1                |
-| POST            | /api/customers                       | Tạo khách hàng mới                                | US2                |
-| POST            | /api/tickets                         | Tạo phiếu bảo hành mới                            | US3, US4, US5, US6 |
-| GET             | /api/tickets/{id}                    | Xem phiếu đã tạo                                  | US3                |
-| GET             | /api/tickets?warranty_verified=false | Quản lý xem danh sách phiếu chờ xác minh bảo hành | US4                |
-| PATCH           | /api/tickets/{id}/approve-warranty   | Phê duyệt phiếu chưa xác minh                     | US4                |
-| GET             | /api/tickets/{id}/status-log         | Xem lịch sử trạng thái phiếu                      | US7                |
+| Phương thức | Đường dẫn | Mục đích | User Story |
+|---|---|---|---|
+| GET | `/api/customers?phone={phone}` | Tra cứu khách hàng theo SĐT | US1 |
+| POST | `/api/customers` | Tạo khách hàng mới | US2 |
+| POST | `/api/tickets` | Tạo phiếu bảo hành mới | US3, US4, US5, US6 |
+| GET | `/api/tickets/{id}` | Xem phiếu đã tạo | US3 |
+| GET | `/api/tickets?warranty_verified=false` | Quản lý xem danh sách phiếu chờ xác minh bảo hành | US4 |
+| PATCH | `/api/tickets/{id}/approve-warranty` | Phê duyệt phiếu chưa xác minh | US4 |
+| GET | `/api/tickets/{id}/status-log` | Xem lịch sử trạng thái phiếu | US7 |
 
 ## 2. Quy ước chung
 
-- Định dạng trao đổi: JSON (UTF-8). Header: Content-Type: application/json.
-
-- Tên trường dùng snake_case, khớp đúng ERD.
-
+- Định dạng trao đổi: JSON (UTF-8). Header: `Content-Type: application/json`.
+- Tên trường dùng `snake_case`, khớp đúng ERD.
 - Thời gian: ISO 8601 (VD: 2026-10-01T09:00:00+07:00).
-
-- Cấu trúc lỗi chung: { "error": { "code": "...", "message": "...", "fields": {...} } }.
-
+- Cấu trúc lỗi chung: `{ "error": { "code": "...", "message": "...", "fields": {...} } }`.
 - Tiền tệ: không áp dụng ở luồng L2 (chưa có thanh toán).
-
-- Phân trang: các GET trả danh sách (status-log, danh sách phiếu) nhận page (từ 1) và size (mặc định 20, tối đa 100); response kèm total.
-
+- Phân trang: các GET trả danh sách (status-log, danh sách phiếu) nhận `page` (từ 1) và `size` (mặc định 20, tối đa 100); response kèm `total`.
 - Không có endpoint DELETE (QT-13: chỉ soft delete).
 
 ## 3. Chi tiết Endpoint chính: POST /api/tickets
 
-**Request body** (center_id lấy từ token đăng nhập, client không gửi – QT-14):
-
+**Request body** (`center_id` lấy từ token đăng nhập, client không gửi – QT-14):
 ```json
 {
   "customer_id": 1024,
@@ -39,7 +32,6 @@
   "issue_desc": "May sac khong vao, cam sac bao loi phu kien"
 }
 ```
-
 **Response 201 Created (đã xác minh bảo hành):**
 
 ```json
@@ -80,7 +72,7 @@
     "message": "Du lieu khong hop le",
     "fields": { "issue_desc": "Truong bat buoc, khong duoc de trong" }
   }
-}
+} 
 ```
 
 Response 404 Not Found: customer_id hoặc device_id không tồn tại.
@@ -155,4 +147,4 @@ Response 409 Conflict: phiếu đã xác minh (warranty_verified = true), không
 
 - Các quy tắc QT-01, 02, 03, 04, 05, 06, 14, 15 đã xuất hiện trong validation hoặc mã lỗi: đạt.
 
-- Mọi trường trong request body tồn tại trong ERD: chờ đối chiếu ở Buổi 5 (cần thêm cột warranty_verified; is_warranty là NOT NULL nên tạm đặt false khi chưa xác minh).
+- Mọi trường trong request body tồn tại trong ERD: đạt (đã đối chiếu và cập nhật cột is_warranty và warranty_verified vào ERD).
