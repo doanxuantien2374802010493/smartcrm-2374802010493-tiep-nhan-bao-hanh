@@ -15,15 +15,18 @@
 
 | **Thuật ngữ**     | **Định nghĩa**                                                                               | **Tên kỹ thuật**                           |
 |-------------------|----------------------------------------------------------------------------------------------|--------------------------------------------|
-| Khách hàng        | Cá nhân đã mua SP/DV của Mekong Mobile                                                       | customer                                   |
-| Thiết bị          | Một máy cụ thể khách sở hữu (serial/IMEI)                                                    | device                                     |
-| Phiếu bảo hành    | Yêu cầu bảo hành được ghi nhận                                                               | ticket                                     |
-| Trạng thái phiếu  | Vị trí trong vòng đời (Hình 6.2 case study): MOI, DA_PHAN_CONG, DANG_XU_LY...                | ticket.status; lịch sử ở ticket_status_log |
-| Hạn cam kết (SLA) | Thời điểm chậm nhất phải hoàn tất phiếu                                                      | due_date                                   |
-| Nhóm sự cố        | Phân loại nguyên nhân: màn hình, pin, sạc...                                                 | issue_category                             |
-| Mức ưu tiên       | Mức khẩn: CAO / TRUNG_BINH / THAP                                                            | priority                                   |
-| Miễn phí bảo hành | Phiếu được miễn phí (true) hay có tính phí (false)                                           | is_warranty                                |
-| Xác minh bảo hành | Đã xác định được ngày mua để kết luận bảo hành hay chưa; chưa xác minh thì cần Quản lý duyệt | warranty_verified                          |
+| Khách hàng        | Cá nhân đã mua SP/DV của Mekong Mobile                                                       | `customer`                                 |
+| Thiết bị          | Một máy cụ thể khách sở hữu (serial/IMEI)                                                    | `device`                                   |
+| Đơn hàng          | Một lần mua hàng tại một cửa hàng, gồm một hoặc nhiều sản phẩm.                              | `order` / `order_item`                     |
+| Phiếu bảo hành    | Yêu cầu bảo hành được ghi nhận                                                               | `ticket`                                   |
+| Trạng thái phiếu  | Vị trí trong vòng đời (Hình 6.2 case study): MOI, DA_PHAN_CONG, DANG_XU_LY...                | `ticket.status`; lịch sử ở `ticket_status_log` |
+| Hạn cam kết (SLA) | Thời điểm chậm nhất phải hoàn tất phiếu                                                      | `due_date`                                 |
+| Nhóm sự cố        | Phân loại nguyên nhân bảo hành: màn hình, pin, sạc...                                                 | `issue_category`                           |
+| Mức ưu tiên       | Mức khẩn: CAO / TRUNG_BINH / THAP                                                            | `priority`                                 |
+| Miễn phí bảo hành | Phiếu được miễn phí (true) hay có tính phí (false)                                           | `is_warranty`                              |
+| Xác minh bảo hành | Đã xác định được ngày mua để kết luận bảo hành hay chưa; chưa xác minh thì cần Quản lý duyệt | `warranty_verified`                        |
+
+*(Ghi chú: `is_warranty` và `due_date` là các giá trị tính toán được chốt cố định tại thời điểm tạo phiếu).*
 
 ## 2. Các bên liên quan và vai trò
 
@@ -73,7 +76,7 @@
 
 **US7 (SHOULD):** Là quản lý trung tâm, tôi muốn xem lịch sử chuyển trạng thái của phiếu để kiểm soát tiến độ và truy vết khi có khiếu nại.
 - AC1: GIVEN phiếu thuộc trung tâm của tôi đã có lần chuyển trạng thái, WHEN mở lịch sử, THEN hiển thị theo thời gian: trạng thái trước/sau, thời điểm, người thực hiện.
-- AC2: GIVEN phiếu thuộc trung tâm khác, WHEN mở lịch sử, THEN từ choi truy cập (QT-14).
+- AC2: GIVEN phiếu thuộc trung tâm khác, WHEN mở lịch sử, THEN từ chối truy cập (QT-14).
 
 **US8 (COULD):** Là nhân viên tiếp nhận, tôi muốn được cảnh báo khi SĐT có nhưng sai tên khách hàng để tránh gắn nhầm phiếu cho khách khác.
 - AC1: GIVEN SĐT đã có hồ sơ tên "Nguyen Van A", WHEN nhập tên khác hẳn, THEN hiển thị cảnh báo và cho xác nhận hoặc sửa lại.
@@ -81,23 +84,23 @@
 
 ## 4. Yêu cầu phi chức năng
 
-| **Mã** | **Yêu cầu phi chức năng (có ngưỡng)**                                                                                                       | **Loại NFR** |
-|--------|---------------------------------------------------------------------------------------------------------------------------------------------|--------------|
-| NFR1   | Tra cứu khách hàng theo SĐT trả kết quả dưới 1 giây trên tập dữ liệu khoảng 65.000 khách hàng.                                              | Hiệu năng    |
-| NFR2   | Với 100% màn hình và phản hồi API dành cho vai trò khác Quản lý (và Ban giám đốc), SĐT phải che 4 chữ số giữa (dạng 090\*\*\*\*567); chỉ Quản lý thấy đủ 10 chữ số (QT-15). | Bảo mật      |
-| NFR3   | Nhân viên mới (kiểm thử với ít nhất 3 người) tạo phiếu đúng trong dưới 3 phút, không cần hỗ trợ.                                            | Khả dụng     |
+| **Mã** | **Yêu cầu phi chức năng (có ngưỡng)**                                                                                                       | **Loại NFR**   |
+|--------|---------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| NFR1   | Tra cứu khách hàng theo SĐT trả kết quả dưới 1 giây trên tập dữ liệu khoảng 65.000 khách hàng.                                              | Hiệu năng      |
+| NFR2   | Với 100% màn hình và phản hồi API dành cho vai trò khác Quản lý (và Ban giám đốc), SĐT phải che 4 chữ số giữa (dạng 090\*\*\*\*567); chỉ Quản lý thấy đủ 10 chữ số (QT-15). | Bảo mật        |
+| NFR3   | Nhân viên mới (kiểm thử với ít nhất 3 người) tạo phiếu đúng trong dưới 3 phút, không cần hỗ trợ.                                            | Khả dụng       |
+| NFR4   | 100% phiếu không bị xóa vật lý và 100% lần chuyển trạng thái đều có một bản ghi trong ticket_status_log.                                    | Toàn vẹn dữ liệu|
 
 ## 5. Ràng buộc và quy tắc nghiệp vụ
 
-- QT-01: Số điện thoại khách hàng là duy nhất. Khi nhập số đã tồn tại, hiển thị hồ sơ có sẵn thay vì tạo mới.
-- QT-02: SĐT chuẩn hóa về 10 chữ số bắt đầu bằng 0 (xử lý các dạng +84…, 84…, dấu cách, dấu chấm).
-- QT-03: Thiết bị xác định duy nhất bằng serial/IMEI; 1 thiết bị thuộc 1 khách tại một thời điểm.
-- QT-04: Hạn cam kết: CAO = 24h, TRUNG_BINH = 72h, THAP = 120h; chỉ tính ngày làm việc T2–T7.
-- QT-05: Còn bảo hành nếu (ngày tiếp nhận − ngày mua) ≤ số tháng bảo hành. Nếu không có ngày mua, phiếu được đánh dấu "chưa xác minh bảo hành" (warranty_verified = false) và cần Quản lý phê duyệt.
-- QT-06: Phiếu chuyển trạng thái đúng vòng đời (Hình 6.2), không lùi trạng thái. Mọi lần chuyển đều ghi vào ticket_status_log; log chỉ được ghi thêm, không sửa hoặc xóa.
-- QT-13: Không xóa vật lý phiếu bảo hành, đơn hàng hay hồ sơ khách hàng; chỉ đánh dấu ngừng sử dụng (soft delete) và giữ nguyên lịch sử.
-- QT-14: Nhân viên chỉ xem được dữ liệu của trung tâm mình làm việc. Quản lý xem được toàn bộ đơn vị mình phụ trách. Ban giám đốc xem toàn công ty.
-- QT-15: SĐT hiển thị dạng che (ví dụ 090\*\*\*\*567) với mọi vai trò trừ Quản lý và Ban giám đốc.
+- **QT-01, QT-02:** Chuẩn hóa SĐT về 10 chữ số bắt đầu bằng 0, SĐT là duy nhất.
+- **QT-03:** Thiết bị xác định duy nhất bằng serial/IMEI; 1 thiết bị thuộc 1 khách tại một thời điểm.
+- **QT-04:** Hạn cam kết: CAO = 24h, TRUNG_BINH = 72h, THAP = 120h; chỉ tính ngày làm việc T2–T7.
+- **QT-05:** Xác định còn bảo hành qua ngày mua. Dùng device.purchase_date, nếu rỗng thì dùng provided_purchase_date. Nếu thiếu ngày mua -> `warranty_verified = false`, chờ Quản lý duyệt.
+- **QT-06:** Phiếu chuyển trạng thái đúng vòng đời (Hình 6.2), không lùi trạng thái. Mọi lần chuyển đều ghi vào `ticket_status_log`; log chỉ được ghi thêm, không sửa hoặc xóa.
+- **QT-13:** Không xóa vật lý phiếu bảo hành, đơn hàng hay hồ sơ khách hàng; chỉ đánh dấu ngừng sử dụng (soft delete) và giữ nguyên lịch sử.
+- **QT-14:** Nhân viên chỉ xem được dữ liệu của trung tâm mình làm việc. Quản lý xem được toàn bộ đơn vị mình phụ trách. Ban giám đốc xem toàn công ty.
+- **QT-15:** SĐT hiển thị dạng che (ví dụ 090\*\*\*\*567) với mọi vai trò trừ Quản lý và Ban giám đốc.
 
 ## 6. Bảng truy vết yêu cầu
 
@@ -109,8 +112,8 @@
 | FR4    | US4            | UC4, UC7     | MUST       | TC06, TC07                                       |
 | FR5    | US5            | UC5          | SHOULD     | TC08                                             |
 | FR6    | US6            | UC5          | MUST       | TC09                                             |
-| FR7    | US7            | UC6          | SHOULD     | TC10                                             |
-| FR8    | US8            | UC1          | COULD      | TC11, TC12 (dự kiến, viết chi tiết trước Buổi 5) |
+| FR7    | US7            | UC6          | SHOULD     | TC10, NFR4                                       |
+| FR8    | US8            | UC1          | COULD      | TC11, TC12 (dự kiến hoàn thiện Buổi 5)           |
 
 **Truy vết quy tắc nghiệp vụ:**
 
@@ -121,9 +124,9 @@
 | QT-04        | FR6 (US6-AC1, AC2); due_date trong response POST /api/tickets |
 | QT-05        | FR4 (US4-AC1, AC2); luồng 5a của UC2; PATCH approve-warranty  |
 | QT-06        | FR7 (US7); ticket_status_log; mã lỗi 409 của approve-warranty |
-| QT-13        | Mọi dữ liệu; không có endpoint DELETE nào trong API           |
+| QT-13        | Mọi dữ liệu; sử dụng cờ is_deleted                            |
 | QT-14        | US7-AC2; mục 5 API contract (403)                             |
-| QT-15        | NFR2; mục 5 API contract                                      |
+| QT-15        | NFR2; xử lý ẩn (masking) tại tầng Service (file `api-contract.md` đính kèm) |
 
 ---
 
@@ -131,9 +134,9 @@
 
 ## 1. Sơ đồ Use Case
 
-<img src="diagrams/usecase.png" title="Use Case Diagram L2" alt="Use case diagram luồng L2 với 2 actor và 7 use case" width="700"/>
+<img src="export/usecase.png" title="Use Case Diagram L2" alt="Use case diagram luồng L2 với 2 actor và 7 use case" width="700"/>
 
-*Hình 1 — Use Case Diagram luồng L2 (2 actor, 7 use case, có ranh giới hệ thống và chú thích). File gốc: `docs/diagrams/usecase.drawio`.*
+*Hình 1 — Use Case Diagram luồng L2 (2 actor, 7 use case, có ranh giới hệ thống và chú thích). File gốc: `docs/usecase.drawio`.*
 
 ## 2. Đặc tả Use Case chi tiết: UC2 — Tạo phiếu bảo hành mới
 
