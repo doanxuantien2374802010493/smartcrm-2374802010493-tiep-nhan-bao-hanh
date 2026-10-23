@@ -1,10 +1,10 @@
 # Hệ thống Tiếp nhận và Phân loại Yêu cầu Bảo hành (SmartCRM - Mekong Mobile)
 
-* **Sinh viên:** Đoàn Xuân Tiến
-* **Mã sinh viên:** 2374802010493
-* **Học phần:** Chuyên đề Tốt nghiệp 1 (HK1 2026-2027)
-* **Track:** Software Engineering (SE)
-* **Luồng nghiệp vụ:** L2 – Tiếp nhận và phân loại yêu cầu bảo hành
+- **Sinh viên:** Đoàn Xuân Tiến
+- **Mã sinh viên:** 2374802010493
+- **Học phần:** Chuyên đề Tốt nghiệp 1 (HK1 2026-2027)
+- **Track:** Software Engineering (SE)
+- **Luồng nghiệp vụ:** L2 – Tiếp nhận và phân loại yêu cầu bảo hành
 
 ---
 
@@ -16,9 +16,10 @@ Hệ thống giúp số hóa quy trình tiếp nhận bảo hành, tra cứu th�
 
 ## 2. Yêu cầu Môi trường
 
-* **Runtime:** Node.js version `20.x LTS`
-* **Cơ sở dữ liệu:** PostgreSQL `16.x`
-* **Cấu hình môi trường:** Sao chép từ tệp `.env.example`
+- **Runtime:** Node.js version `20.x LTS`
+- **Cơ sở dữ liệu:** PostgreSQL `16.x`
+- **Giao diện:** React (Vite)
+- **Cấu hình môi trường:** Sao chép từ tệp `.env.example`
 
 ---
 
@@ -26,15 +27,23 @@ Hệ thống giúp số hóa quy trình tiếp nhận bảo hành, tra cứu th�
 
 ```text
 smartcrm-2374802010493-tiep-nhan-bao-hanh/
+├── db/
 ├── docs/
+│   ├── ai-disclosure.md        # Bảng khai báo sử dụng công cụ AI (BT2)
 │   ├── srs.md                  # Tài liệu Đặc tả Yêu cầu Phần mềm (SRS)
-│   ├── thay-doi-thiet-ke.md    # Nhật ký thay đổi thiết kế (TD-01 -> TD-06)
-│   └── ai-disclosure.md        # Bảng khai báo sử dụng công cụ AI (BT2)
+│   └── thay-doi-thiet-ke.md     # Nhật ký thay đổi thiết kế (TD-01 -> TD-06)
 ├── migrations/
 │   └── 001_create_tables.sql   # DDL 6 bảng chuẩn 3NF & Triggers bảo mật NFR4
 ├── seeds/
 │   └── 001_seed_data.sql       # Dữ liệu khởi tạo mẫu (Khách hàng, Thiết bị, Nhóm lỗi)
 ├── src/
+│   ├── frontend/               # Giao diện React (Vite) - 3 màn hình nghiệp vụ
+│   │   ├── src/
+│   │   │   ├── api/            # Tích hợp API gọi Backend
+│   │   │   ├── components/     # Thành phần UI (DataState,...)
+│   │   │   ├── hooks/          # Custom Hooks (useTickets)
+│   │   │   └── pages/          # ReceiveDevicePage, TicketListPage, TicketDetailPage
+│   │   └── package.json
 │   ├── errors/
 │   │   └── AppError.js         # Lớp xử lý lỗi nghiệp vụ hệ thống
 │   ├── validators/
@@ -46,9 +55,10 @@ smartcrm-2374802010493-tiep-nhan-bao-hanh/
 │   │   └── ticket.service.js      # Tầng 2: Logic nghiệp vụ cốt lõi (QT-04, QT-05, QT-09)
 │   ├── routes/
 │   │   └── ticket.routes.js       # Tầng 1: Controller Express / Dịch mã lỗi HTTP
-│   └── app.js                  # Khởi chạy Express Server
+│   └── app.js                  # Khởi chạy Express Server & Tích hợp Mock/DB
 ├── tests/
-│   └── ticket.service.test.js  # Bộ 3 Unit Test Cases (TC01, TC02, TC03)
+│   └── ticket.service.test.js  # Bộ Unit Test Cases tự động (TC01, TC02, TC03)
+├── .env                        # Biến môi trường thực tế
 ├── .env.example                # Mẫu khai báo biến môi trường
 ├── package.json
 └── README.md                   # Tài liệu hướng dẫn hệ thống
@@ -65,6 +75,7 @@ cp .env.example .env
 ```
 
 ### Bước 2: Cài đặt các thư viện phụ thuộc
+Cài đặt cho cả Backend và Frontend:
 ```bash
 npm install
 ```
@@ -75,29 +86,44 @@ Khởi tạo cấu trúc 6 bảng chuẩn 3NF và nạp dữ liệu mẫu:
 # Thực thi script khởi tạo bảng và triggers
 psql -U postgres -d smartcrm -f migrations/001_create_tables.sql
 
-# Thực thi nạp dữ liệu mẫu (nếu có)
+# Thực thi nạp dữ liệu mẫu
 psql -U postgres -d smartcrm -f seeds/001_seed_data.sql
 ```
 
 ### Bước 4: Khởi chạy ứng dụng
-* **Chế độ phát triển (Development mode):**
+- **Khởi chạy Backend Server:**
   ```bash
+  node src/app.js
+  ```
+- **Khởi chạy Frontend (Development mode):**
+  ```bash
+  cd src/frontend
   npm run dev
   ```
-* **Chế độ sản xuất (Production mode):**
-  ```bash
-  npm start
-  ```
 
-Sau khi khởi chạy, kiểm tra sức khỏe hệ thống tại: `http://localhost:3000/health`
+Sau khi khởi chạy, hệ thống Frontend sẽ kết nối trực tiếp với API Backend để phục vụ 3 màn hình nghiệp vụ: **Tiếp nhận thiết bị**, **Danh sách phiếu** và **Chi tiết phiếu**.
 
 ---
 
-## 5. Kiểm thử Hệ thống (Unit Tests)
+## 5. Kết quả Kiểm thử Hệ thống (Unit Tests)
 
-Thực thi bộ Unit Test kiểm thử các logic nghiệp vụ tính hạn SLA (`QT-04`), kiểm tra bảo hành (`QT-05`) và chặn phiếu trùng (`QT-09`):
+Thực thi bộ Unit Test tự động kiểm thử các logic nghiệp vụ tính hạn SLA (`QT-04`), kiểm tra bảo hành (`QT-05`) và chặn phiếu trùng (`QT-09`):
 ```bash
 npm test
+```
+
+**Kết quả thực thi mẫu:**
+```text
+  PASS  smartcrm-2374802010493-tiep-nhan-bao-hanh/tests/ticket.service.test.js (5.78 s)
+  TicketService Core Rules
+    √ TC01 - Luồng đúng: Tạo phiếu bảo hành thành công cho thiết bị còn hạn (6 ms)
+    √ TC02 - Giá trị biên (QT-05): Ngày cuối cùng còn bảo hành vs ngày đầu tiên hết hạn
+    √ TC03 - Dữ liệu sai (QT-09): Thiết bị đã có phiếu đang mở thì bị từ chối với mã PHIEU_DANG_MO (4 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        16.747 s
 ```
 
 ---
@@ -107,4 +133,5 @@ npm test
 - [x] **Buổi 2:** Khởi tạo cấu trúc dự án, thiết lập kiểm thử khói (Smoke Test).
 - [x] **Buổi 6 (BT1):** Hoàn thiện và nộp hồ sơ Phân tích & Thiết kế (SRS, ERD, Sơ đồ kiến trúc, Wireframe UI).
 - [x] **Buổi 8 (BT1 Feedback):** Cập nhật Nhật ký thay đổi thiết kế (`TD-01` đến `TD-06`), chuẩn hóa CSDL còn 6 bảng.
-- [x] **Buổi 8–10 (BT2):** Hiện thực hóa Module Cốt lõi tiếp nhận yêu cầu bảo hành, hoàn thiện kiến trúc 3 tầng độc lập, cài đặt Trigger NFR4 và viết bộ 3 Unit Test cases.
+- [x] **Buổi 8–10 (BT2):** Hiện thực hóa Module Cốt lõi tiếp nhận yêu cầu bảo hành, hoàn thiện kiến trúc 3 tầng độc lập, cài đặt Trigger NFR4 và viết bộ Unit Test cases.
+- [x] **Buổi 10 (Sprint 1 Integration):** Tích hợp hoàn chỉnh Frontend React (Vite) với 3 màn hình chính gọi API thật, đạt chuẩn End-to-End.
