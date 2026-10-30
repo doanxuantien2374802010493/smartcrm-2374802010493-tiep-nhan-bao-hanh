@@ -1,44 +1,51 @@
 const express = require('express');
-const { validateCreateTicket } = require('../validators/ticket.validator');
-
-const HTTP_BY_CODE = {
-  DU_LIEU_KHONG_HOP_LE: 400,
-  THIET_BI_KHONG_TON_TAI: 404,
-  PHIEU_DANG_MO: 409,
-  UU_TIEN_KHONG_HOP_LE: 400
-};
+const wrap = require('./async');
+const { toApi } = require('./presenter');
+const {
+  validateCreateTicket, validateUpdateTicket, validateApproveWarranty,
+} = require('../validators/ticket.validator');
+const { parseId, parsePaging, failIfAny } = require('../validators/common');
 
 module.exports = function ticketRoutes(ticketService) {
   const router = express.Router();
 
-  // 1. Bổ sung endpoint GET để lấy danh sách vé bảo hành (Phục vụ chụp ảnh Mức 7)
-  router.get('/tickets', async (req, res, next) => {
-    try {
-      // Giả sử service của bạn có hàm getAllTickets hoặc dùng trực tiếp repository
-      const tickets = ticketService.getAllTickets ? await ticketService.getAllTickets() : [];
-      res.status(200).json({ success: true, data: tickets });
-    } catch (e) {
-      next(e);
-    }
-  });
+  // GET /api/tickets  hoặc  ?warranty_verified=false (Quản lý, phiếu chờ xác minh)
+  router.get('/', wrap(async (req, res) => {
+    const wv = req.query.warranty_verified;
+    if (wv !== undefined && wv !== 'false') failIfAny({ warranty_verified: 'Chỉ nhận giá trị false' });
+    const paging = parsePaging(req.query);
+    const { rows, total } = await ticketService.listTickets(req.user, { onlyUnverified: wv === 'false', ...paging });
+    res.json(toApi({ data: rows, page: paging.page, size: paging.size, total }));
+  }));
 
-  // 2. Endpoint POST tạo vé bảo hành hiện tại của bạn
-  router.post('/tickets', async (req, res, next) => {
-    try {
-      const input = validateCreateTicket(req.body);
-      const ticket = await ticketService.createTicket(input);
-      res.status(201).json({ data: ticket });
-    } catch (e) {
-      if (e.code && HTTP_BY_CODE[e.code]) {
-        return res.status(HTTP_BY_CODE[e.code]).json({
-          error: e.code,
-          message: e.message,
-          chi_tiet: e.chiTiet
-        });
-      }
-      next(e);
-    }
-  });
+  router.post('/', wrap(async (req, res) => {
+    res.status(201).json(toApi(await ticketService.createTicket(req.user, validateCreateTicket(req.body))));
+  }));
+
+  router.get('/:id', wrap(async (req, res) => {
+    res.json(toApi(await ticketService.getTicket(req.user, parseId(req.params.id))));
+  }));
+
+  router.patch('/:id', wrap(async (req, res) => {
+    const patch = validateUpdateTicket(req.body);
+    res.json(toApi(await ticketService.updateTicket(req.user, parseId(req.params.id), patch)));
+  }));
+
+  router.patch('/:id/approve-warranty', wrap(async (req, res) => {
+    const input = validateApproveWarranty(req.body);
+    res.json(toApi(await ticketService.approveWarranty(req.user, parseId(req.params.id), input)));
+  }));
+
+  router.get('/:id/status-log', wrap(async (req, res) => {
+    const paging = parsePaging(req.query);
+    const { rows, total } = await ticketService.getStatusLog(req.user, parseId(req.params.id), paging);
+    res.json(toApi({ data: rows, page: paging.page, size: paging.size, total }));
+  }));
+
+  // QT-13: không có endpoint DELETE; "xóa" là xóa mềm
+  router.post('/:id/soft-delete', wrap(async (req, res) => {
+    res.json(toApi(await ticketService.softDeleteTicket(req.user, parseId(req.params.id))));
+  }));
 
   return router;
 };

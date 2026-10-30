@@ -1,23 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ticketsApi } from '../api/tickets.api';
 
+// Tải danh sách phiếu theo bộ lọc; reload() để thử lại khi lỗi
 export function useTickets(filters) {
-  const [state, setState] = useState({ data: null, loading: true, error: null });
+  const [state, setState] = useState({ rows: null, total: 0, loading: true, error: null });
+  const [lan, setLan] = useState(0);
 
   useEffect(() => {
     let huy = false;
-    setState({ data: null, loading: true, error: null });
-    
+    setState({ rows: null, total: 0, loading: true, error: null });
     ticketsApi.danhSach(filters)
-      .then(data => { 
-        if (!huy) setState({ data, loading: false, error: null }); 
-      })
-      .catch(err => { 
-        if (!huy) setState({ data: null, loading: false, error: err }); 
-      });
-
+      .then((res) => { if (!huy) setState({ rows: res.data, total: res.total, loading: false, error: null }); })
+      .catch((error) => { if (!huy) setState({ rows: null, total: 0, loading: false, error }); });
     return () => { huy = true; };
-  }, [JSON.stringify(filters)]);
+  }, [JSON.stringify(filters), lan]);
 
-  return state;
+  const reload = useCallback(() => setLan((n) => n + 1), []);
+  return { ...state, reload };
 }

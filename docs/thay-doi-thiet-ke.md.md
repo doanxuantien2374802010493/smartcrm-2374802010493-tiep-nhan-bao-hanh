@@ -109,10 +109,38 @@ Bài tập 1 đạt kết quả 7/10. Sáu điểm giảng viên góp ý đã đ
 
 ---
 
+## THAY ĐỔI PHÁT SINH KHI HIỆN THỰC BÀI TẬP 2 (TD-07 → TD-10)
+
+### TD-07: Bổ sung cột đăng nhập cho bảng employee
+* **Nguồn phát sinh:** API contract mục 5 yêu cầu xác thực JWT và gán `center_id` từ token (QT-14), nhưng ERD BT1 chưa có thông tin đăng nhập.
+* **Quyết định:** **SỬA (bổ sung)**
+* **Lý do kỹ thuật:** Không có tên đăng nhập và mật khẩu băm thì không xác định được người dùng, vai trò và trung tâm của họ.
+* **Ảnh hưởng & Hiện thực:** Migration `002_triggers_and_auth.sql` thêm `username` (UNIQUE) và `password_hash` vào `employee`. ERD vẫn 6 bảng; cần cập nhật `erd.drawio` và `erd-6-bang.png`.
+
+### TD-08: Bổ sung endpoint ngoài hợp đồng BT1
+* **Nguồn phát sinh:** Đề BT2 yêu cầu ≥ 2 thực thể đủ CRUD và giao diện cần danh sách phiếu; hợp đồng BT1 chưa có các endpoint này.
+* **Quyết định:** **SỬA (bổ sung)**
+* **Lý do kỹ thuật:** Đủ thao tác tạo, đọc, sửa, xóa cho `customer` và `ticket`. "Xóa" là xóa mềm bằng `POST /:id/soft-delete`, vẫn không có endpoint DELETE (QT-13).
+* **Ảnh hưởng & Hiện thực:** Thêm `POST /api/auth/login`, `GET/PATCH /api/customers/{id}`, `POST /api/customers/{id}/soft-delete`, `GET /api/tickets`, `PATCH /api/tickets/{id}`, `POST /api/tickets/{id}/soft-delete`, `GET /api/issue-categories`. Cần bổ sung vào `docs/api-contract.md`.
+
+### TD-09: Dùng thư viện pg (SQL thuần) thay cho Prisma; kiểm thử bằng Jest
+* **Nguồn phát sinh:** Stack ghi ở BT1 là PostgreSQL/Prisma; khi hiện thực chọn `pg` trực tiếp.
+* **Quyết định:** **SỬA**
+* **Lý do kỹ thuật:** Lớp repository viết SQL tường minh, giao dịch ghi phiếu cùng log (NFR4) kiểm soát bằng `BEGIN/COMMIT`, không cần bước sinh client; dễ giải thích từng dòng khi vấn đáp.
+* **Ảnh hưởng & Hiện thực:** Chỉ ảnh hưởng `src/repositories/` và `package.json`; ba lớp và DDL không đổi.
+
+### TD-10: Không hiện thực QT-09 (chặn phiếu mở trùng) trong BT2
+* **Nguồn phát sinh:** README và test cũ nhắc QT-09, nhưng SRS BT1 (mục quy tắc nghiệp vụ) không có QT-09.
+* **Quyết định:** **GIỮ NGUYÊN thiết kế BT1** (không thêm quy tắc ngoài SRS)
+* **Lý do kỹ thuật:** BT2 phải hiện thực đúng thiết kế đã nộp; quy tắc không có trong SRS thì không truy vết được. Các quy tắc hiện thực: QT-01, QT-02, QT-03, QT-04, QT-05, QT-06, QT-13, QT-14, QT-15.
+* **Ảnh hưởng & Hiện thực:** README và bộ test không còn nhắc QT-09. Nếu muốn giữ, phải bổ sung QT-09 vào `docs/srs.md` trước.
+
+---
+
 ## TÁC ĐỘNG TỔNG THỂ KHI CHUYỂN SANG BÀI TẬP 2 (BT2)
 
 Các thay đổi từ **TD-01** đến **TD-06** được áp dụng trực tiếp vào mã nguồn của **Bài tập 2** như sau:
-1. **Migration & DDL:** Dựng đúng 6 bảng trong PostgreSQL/Prisma, gắn Trigger `forbid_change()` để chặn lệnh `DELETE` vật lý và cấm chỉnh sửa `ticket_status_log` (Đáp ứng TD-01, TD-02).
+1. **Migration & DDL:** Dựng đúng 6 bảng trong PostgreSQL (thư viện `pg`, xem TD-09), gắn Trigger `forbid_change()` để chặn lệnh `DELETE` vật lý và cấm chỉnh sửa `ticket_status_log` (Đáp ứng TD-01, TD-02).
 2. **Business Logic trong Service Layer:**
    * Hàm `createTicket()` tự động tạo bản ghi `ticket` và ghi ngay bản ghi khởi tạo trạng thái `MOI` vào `ticket_status_log` trong cùng 1 Transaction (Đáp ứng TD-01, TD-03).
    * Kiểm tra điều kiện ngày mua: Nếu thiếu ngày mua $\rightarrow$ tự động gán `is_warranty = false` và `warranty_verified = false` (Đáp ứng TD-03).

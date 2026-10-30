@@ -1,19 +1,16 @@
 import { request } from './client';
 
 export const ticketsApi = {
-  danhSach: ({ trang = 1, trangThai, tuKhoa } = {}) => {
-    const q = new URLSearchParams({ trang: String(trang) });
-    if (trangThai) q.set('trang_thai', trangThai);
-    if (tuKhoa) q.set('tu_khoa', tuKhoa);
+  // Trả { data, page, size, total }; chuaXacMinh chỉ Quản lý dùng được
+  danhSach: ({ page = 1, size = 20, chuaXacMinh = false } = {}) => {
+    const q = new URLSearchParams({ page: String(page), size: String(size) });
+    if (chuaXacMinh) q.set('warranty_verified', 'false');
     return request(`/api/tickets?${q}`);
   },
   chiTiet: (id) => request(`/api/tickets/${id}`),
-  tiepNhan: (payload) => request('/api/tickets', {
-    method: 'POST', 
-    body: JSON.stringify(payload)
+  tiepNhan: (payload) => request('/api/tickets', { method: 'POST', body: JSON.stringify(payload) }),
+  pheDuyet: (id, isWarranty, note) => request(`/api/tickets/${id}/approve-warranty`, {
+    method: 'PATCH', body: JSON.stringify({ is_warranty: isWarranty, ...(note ? { note } : {}) }),
   }),
-  phanCong: (id, ktv) => request(`/api/tickets/${id}/technician`, {
-    method: 'PATCH', 
-    body: JSON.stringify({ technicianId: ktv })
-  }),
+  lichSu: (id) => request(`/api/tickets/${id}/status-log`),
 };

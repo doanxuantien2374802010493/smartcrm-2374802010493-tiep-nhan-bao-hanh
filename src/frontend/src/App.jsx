@@ -1,30 +1,45 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { authStore } from './api/client';
+import LoginPage from './pages/LoginPage';
 import TicketListPage from './pages/TicketListPage';
 import ReceiveDevicePage from './pages/ReceiveDevicePage';
 import TicketDetailPage from './pages/TicketDetailPage';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState('list');
+  const [user, setUser] = useState(authStore.user());
+  const [tab, setTab] = useState('list');
+  const [ticketId, setTicketId] = useState(null);
+
+  // Đăng nhập/đăng xuất (kể cả khi phiên hết hạn) cập nhật lại màn hình
+  useEffect(() => {
+    const cap = () => { setUser(authStore.user()); setTab('list'); };
+    window.addEventListener('auth-changed', cap);
+    return () => window.removeEventListener('auth-changed', cap);
+  }, []);
+
+  if (!user) return <div style={{ fontFamily: 'Arial, sans-serif', background: '#f4f7f6', minHeight: '100vh' }}><LoginPage /></div>;
+
+  const moChiTiet = (id) => { setTicketId(id); setTab('detail'); };
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', background: '#f4f7f6', minHeight: '100vh' }}>
-      <header style={{ background: '#333', padding: '15px 20px', display: 'flex', gap: '15px' }}>
+      <header style={{ background: '#333', padding: '15px 20px', display: 'flex', gap: '15px', alignItems: 'center' }}>
         <h3 style={{ color: '#fff', margin: '0 20px 0 0' }}>SmartCRM</h3>
-        <button onClick={() => setCurrentTab('list')} style={btnStyle(currentTab === 'list')}>Danh sách phiếu</button>
-        <button onClick={() => setCurrentTab('create')} style={btnStyle(currentTab === 'create')}>Tiếp nhận thiết bị</button>
-        <button onClick={() => setCurrentTab('detail')} style={btnStyle(currentTab === 'detail')}>Chi tiết phiếu</button>
+        <button onClick={() => setTab('list')} style={btnStyle(tab === 'list')}>Danh sách phiếu</button>
+        <button onClick={() => setTab('create')} style={btnStyle(tab === 'create')}>Tiếp nhận thiết bị</button>
+        <span style={{ marginLeft: 'auto', color: '#ddd' }}>{user.full_name} · trung tâm {user.center_id}</span>
+        <button onClick={() => authStore.clear()} style={btnStyle(false)}>Đăng xuất</button>
       </header>
 
       <main style={{ padding: '20px' }}>
-        {currentTab === 'list' && <TicketListPage />}
-        {currentTab === 'create' && <ReceiveDevicePage />}
-        {currentTab === 'detail' && <TicketDetailPage ticketId={1} />}
+        {tab === 'list' && <TicketListPage onOpen={moChiTiet} onCreate={() => setTab('create')} />}
+        {tab === 'create' && <ReceiveDevicePage onOpen={moChiTiet} />}
+        {tab === 'detail' && <TicketDetailPage ticketId={ticketId} onBack={() => setTab('list')} />}
       </main>
     </div>
   );
 }
 
-// Hàm hỗ trợ style cho nút bấm menu
 const btnStyle = (isActive) => ({
   background: isActive ? '#007bff' : 'transparent',
   color: '#fff',
@@ -32,5 +47,5 @@ const btnStyle = (isActive) => ({
   padding: '8px 16px',
   cursor: 'pointer',
   borderRadius: '4px',
-  fontWeight: isActive ? 'bold' : 'normal'
+  fontWeight: isActive ? 'bold' : 'normal',
 });
