@@ -7,7 +7,8 @@
     "test": "jest",
     "start": "node src/server.js",
     "db:setup": "node scripts/db-setup.js",
-    "test:integration": "jest tests/integration.db.test.js tests/security.api.test.js tests/security.owasp.test.js tests/robustness.test.js tests/regression.bt2.test.js --runInBand --testPathIgnorePatterns=/node_modules/"
+    "test:integration": "jest tests/integration.db.test.js tests/security.api.test.js tests/security.owasp.test.js tests/robustness.test.js tests/regression.bt2.test.js --runInBand --testPathIgnorePatterns=/node_modules/",
+    "test:all": "npm test && npm run test:integration"
   },
   "keywords": [],
   "author": "",
