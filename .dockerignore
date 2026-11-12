@@ -1,0 +1,7 @@
+node_modules
+src/frontend/node_modules
+.git
+.env
+*.log
+docs
+tests/docs.consistency.test.js
