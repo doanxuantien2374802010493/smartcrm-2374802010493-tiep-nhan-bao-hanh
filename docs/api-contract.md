@@ -115,7 +115,7 @@ Response 409 Conflict: phiếu đã xác minh (warranty_verified = true), không
 
 - GET /api/tickets/{id} → 200: chi tiết phiếu (SĐT che theo QT-15) · 403: phiếu thuộc trung tâm khác (QT-14) · 404: phiếu không tồn tại.
 
-- GET /api/tickets?warranty_verified=false → 200: danh sách phiếu chờ xác minh của trung tâm mình, có phân trang · 400: tham số không hợp lệ · 403: vai trò không phải Quản lý.
+- GET /api/tickets → 200: danh sách phiếu của trung tâm mình, có phân trang (`page`, `size`), SĐT che theo QT-15 với Nhân viên · 401: chưa đăng nhập · 400: tham số không hợp lệ.
 
 - GET /api/tickets/{id}/status-log → 200: danh sách chuyển trạng thái theo thời gian · 403: vai trò hoặc trung tâm không có quyền xem · 404: phiếu không tồn tại.
 
@@ -133,7 +133,7 @@ Response 409 Conflict: phiếu đã xác minh (warranty_verified = true), không
 
 - Mọi endpoint yêu cầu đăng nhập (header Authorization: Bearer \<token\>); thiếu hoặc hết hạn → 401 Unauthorized.
 
-- Nhân viên tiếp nhận: GET/POST /api/customers, POST /api/tickets, GET /api/tickets/{id}. Quản lý trung tâm: GET /api/tickets (phiếu chờ xác minh), PATCH approve-warranty, GET status-log. Gọi sai vai trò → 403 Forbidden.
+- Nhân viên tiếp nhận: GET/POST /api/customers, POST /api/tickets, GET /api/tickets (danh sách), GET /api/tickets/{id}. Quản lý trung tâm: tất cả quyền của Nhân viên, thêm GET /api/tickets?warranty_verified=false (phiếu chờ xác minh), PATCH approve-warranty, GET status-log. Gọi sai vai trò → 403 Forbidden.
 
 - Mỗi vai trò chỉ truy cập dữ liệu của trung tâm mình (QT-14); SĐT trong response bị che 4 chữ số giữa với vai trò khác Quản lý (QT-15, NFR2).
 

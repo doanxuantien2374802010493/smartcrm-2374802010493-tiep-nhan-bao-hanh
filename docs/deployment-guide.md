@@ -124,3 +124,9 @@ Optional: run the seed a second time (`docker compose exec app npm run db:setup`
 | `app` exits with `getaddrinfo EAI_AGAIN db` after re-running `up` | Stale containers/network from a previous run | `docker compose down`, then `docker compose up -d --build` |
 | Empty ticket list / `relation does not exist` | Database volume from an older run | `docker compose down -v`, then `docker compose up -d --build` |
 | Need a full reset | | `docker compose down -v` |
+## Known limitations
+
+- **No API or screen to add a device record for a new customer.** A customer can be created (`POST /api/customers`), but devices exist only in the seed data. A ticket can be created only for an existing device (design change TD-12).
+- **Ticket status never moves past `MOI`.** The 15 endpoints include no call that changes a ticket's status after creation; the status log holds only the creation entry. This prototype covers intake and classification only.
+- **Demo accounts only.** Two users (`nv1` reception staff, `ql1` center manager) with one shared demo password from the seed data. Do not use them outside local development.
+- **Local HTTP only.** No TLS and no production deployment; the Docker Compose file starts `db` and `app` for local use.
