@@ -1,270 +1,399 @@
 # API Documentation — SmartCRM: Warranty Request Intake & Classification
 
-Base URL (local): `http://localhost:3000` · Format: JSON · Version: tag `v1.0`
+Student: Doan Xuan Tien (2374802010493) · Track: SE · Flow L2 · Version: tag `v1.0`
+
+Base URL (local): `http://localhost:3000` · Format: JSON, UTF-8
+
+All example requests and responses were captured from a real run of `scripts/api-run.ps1` against the seeded database (14 Nov 2026). Tokens are replaced by `<token>`. Where a response is shortened, the text says so. The endpoint list below has 15 endpoints, equal to the number of routes in `src/`.
 
 ## Conventions
 
-- Field names are `snake_case`. Timestamps are ISO 8601 with `+07:00` (example: `2026-11-06T09:30:00+07:00`).
-- List endpoints return `{ "data": [...], "page": n, "size": n, "total": n }` and accept `page` (integer from 1, default 1) and `size` (integer 1 to 100, default 20); invalid values return 400 `VALIDATION_FAILED` with `fields.page` or `fields.size`.
-- Public endpoints (no token): `GET /api/health`, `POST /api/auth/login`. Every other endpoint requires a valid token (JWT). Send it as `Authorization: Bearer <token>`. The token payload carries `employee_id`, `full_name`, `role` and `center_id`; a missing, invalid or expired token returns 401 `UNAUTHORIZED`.
-- Roles: `staff` = `NHAN_VIEN_TIEP_NHAN` (demo `nv1`, `nv2`), `manager` = Quản lý trung tâm (demo `ql1`).
-- `:id` in a path must be a positive integer, otherwise 400 `VALIDATION_FAILED` with `fields.id`.
-- No `DELETE` endpoints exist. "Delete" is a soft delete via `POST /:id/soft-delete`.
-- Error body: `{ "error": { "code": "...", "message": "..." } }`. Validation errors add a `fields` object; other business errors may add `details`. Unknown `/api/...` paths return 404 `NOT_FOUND`. Every response carries an `X-Request-Id` header. System errors never expose internals (see Error codes).
-- Phone numbers are masked in responses for staff (`090****567`); see the ticket and customer examples.
+- **Authentication.** Send `Authorization: Bearer <token>`. Get a token from endpoint 2. The token payload holds `employeeId`, `fullName`, `role`, `centerId`, `iat`, `exp`; it expires after 8 hours (`JWT_EXPIRES_IN=8h`).
+- **Roles.** `NHAN_VIEN_TIEP_NHAN` (reception staff, demo user `nv1`) and `QUAN_LY` (center manager, demo user `ql1`). Demo password for both: `Mekong@123` (local development only).
+- **Error format.** `{"error":{"code":"<CODE>","message":"<text>","fields":{...},"details":{...}}}`. `fields` appears for `VALIDATION_FAILED`; `details` appears for `PHONE_EXISTS`. Messages are in Vietnamese.
+- **Request ID.** Every response carries an `X-Request-Id` header. An unexpected error returns `500 INTERNAL_ERROR` with a generic message and a lookup code; the stack trace stays in the server log.
+- **Phone masking.** For `NHAN_VIEN_TIEP_NHAN`, phone numbers are masked (`090****567`). For `QUAN_LY` the full number is returned (`0901234567`).
+- **Soft delete.** Deleting is a `POST .../soft-delete` that sets `is_deleted` to `true`; the row stays in the database. A soft-deleted customer is then answered with `404 CUSTOMER_NOT_FOUND`.
+- **Pagination.** List endpoints take `page` and `size` (`size` is an integer from 1 to 100; the run shows a default of 20) and return `{"data":[...],"page":1,"size":20,"total":N}`.
 
-## Endpoint summary (15)
+## Endpoint index
 
-| # | Method | Path | Purpose | Token | Roles |
-|---|---|---|---|---|---|
-| 1 | GET | `/api/health` | Liveness check | no | public |
-| 2 | POST | `/api/auth/login` | Log in, get token | no | public |
-| 3 | GET | `/api/customers?phone=&name=` | Look up customer by phone | yes | <<VERIFY roles: nv1, ql1>> |
-| 4 | POST | `/api/customers` | Create customer | yes | <<VERIFY roles>> |
-| 5 | GET | `/api/customers/:id` | Get one customer | yes | <<VERIFY roles>> |
-| 6 | PATCH | `/api/customers/:id` | Update customer | yes | <<VERIFY roles>> |
-| 7 | POST | `/api/customers/:id/soft-delete` | Soft-delete customer | yes | <<VERIFY roles>> |
-| 8 | GET | `/api/tickets` | List tickets (paged); `?warranty_verified=false` lists tickets awaiting verification | yes | <<VERIFY: nv1 and ql1 for list; who may use warranty_verified=false>> |
-| 9 | POST | `/api/tickets` | Create ticket | yes | <<VERIFY roles>> |
-| 10 | GET | `/api/tickets/:id` | Get one ticket (flat object, no `data` wrapper) | yes | staff and manager of the ticket's center; other center gets 403 |
-| 11 | PATCH | `/api/tickets/:id` | Update ticket (only while status is `MOI`) | yes | <<VERIFY roles>> |
-| 12 | PATCH | `/api/tickets/:id/approve-warranty` | Manager approves warranty verification | yes | <<VERIFY: nv1 gets 403, ql1 succeeds>> |
-| 13 | GET | `/api/tickets/:id/status-log` | Status history of a ticket (paged) | yes | manager only (staff gets 403 `FORBIDDEN`) |
-| 14 | POST | `/api/tickets/:id/soft-delete` | Soft-delete ticket | yes | <<VERIFY roles>> |
-| 15 | GET | `/api/issue-categories` | List issue categories | yes | any logged-in user |
+| # | Method | Path | Token | Roles verified in the run |
+|---|---|---|---|---|
+| 1 | GET | `/api/health` | No | — |
+| 2 | POST | `/api/auth/login` | No | — |
+| 3 | GET | `/api/customers?phone=` | Yes | NHAN_VIEN_TIEP_NHAN |
+| 4 | POST | `/api/customers` | Yes | NHAN_VIEN_TIEP_NHAN |
+| 5 | GET | `/api/customers/:id` | Yes | NHAN_VIEN_TIEP_NHAN, QUAN_LY |
+| 6 | PATCH | `/api/customers/:id` | Yes | NHAN_VIEN_TIEP_NHAN, QUAN_LY |
+| 7 | POST | `/api/customers/:id/soft-delete` | Yes | NHAN_VIEN_TIEP_NHAN |
+| 8 | GET | `/api/tickets` | Yes | NHAN_VIEN_TIEP_NHAN, QUAN_LY (filter `warranty_verified=false`: QUAN_LY only) |
+| 9 | POST | `/api/tickets` | Yes | NHAN_VIEN_TIEP_NHAN |
+| 10 | GET | `/api/tickets/:id` | Yes | NHAN_VIEN_TIEP_NHAN, QUAN_LY |
+| 11 | PATCH | `/api/tickets/:id` | Yes | NHAN_VIEN_TIEP_NHAN, QUAN_LY |
+| 12 | PATCH | `/api/tickets/:id/approve-warranty` | Yes | QUAN_LY only (NHAN_VIEN_TIEP_NHAN gets 403) |
+| 13 | GET | `/api/tickets/:id/status-log` | Yes | QUAN_LY only (NHAN_VIEN_TIEP_NHAN gets 403) |
+| 14 | POST | `/api/tickets/:id/soft-delete` | Yes | QUAN_LY only (NHAN_VIEN_TIEP_NHAN gets 403) |
+| 15 | GET | `/api/issue-categories` | Yes | — |
 
-## Endpoint details
+## Error codes seen in the run
 
-Every endpoint below has the same seven items: description, auth, request, success, errors, example request, example response. Example responses are copied from a real run on a clean clone (`scripts/api-run.ps1`, account `nv1` or `ql1`); long lists are marked "shortened".
+| HTTP | Code | Meaning |
+|---|---|---|
+| 400 | `VALIDATION_FAILED` | A field is missing or invalid; `fields` names it. |
+| 401 | `UNAUTHORIZED` | No token (seen on `GET /api/tickets`). |
+| 401 | `INVALID_CREDENTIALS` | Wrong password at login. |
+| 403 | `FORBIDDEN` | The role is not allowed (message: only the center manager may do this). |
+| 404 | `CUSTOMER_NOT_FOUND` | No such customer, or the customer is soft-deleted. |
+| 404 | `TICKET_NOT_FOUND` | No such ticket. |
+| 409 | `PHONE_EXISTS` | A customer with this phone already exists. |
+| 409 | `WARRANTY_ALREADY_VERIFIED` | The ticket was already verified; it cannot be approved again. |
+| 500 | `INTERNAL_ERROR` | Unexpected error; generic message plus a lookup code. |
 
-### 1. GET /api/health
+## Ticket object
 
-- Description: liveness check.
-- Auth: none.
-- Request: no parameters.
-- Success: 200 `{"status":"ok"}`.
-- Errors: none expected. If the process is down the connection is refused.
-- Example request: `curl.exe -s http://localhost:3000/api/health`
-- Example response: `{"status":"ok"}` (screenshot `docs/screenshots/health-ok.png`)
+Returned by endpoints 8, 9, 10, 11 and 12. Fields: `ticket_id`, `ticket_code`, `device_id`, `category_id`, `center_id`, `issue_desc`, `priority` (`CAO`, `TRUNG_BINH`, `THAP`), `status` (`MOI` in every run response), `provided_purchase_date`, `is_warranty`, `warranty_verified`, `received_at`, `due_date`, `closed_at`, `is_deleted`, `device_name`, `serial_no`, `customer_id`, `customer_name`, `customer_phone`, `category_name`.
 
-### 2. POST /api/auth/login
+In the examples below, `NV` is a token of `nv1` and `QL` is a token of `ql1`, for example:
 
-- Description: authenticate an employee and return a token.
-- Auth: none.
-- Request body: `{ "username": "<string>", "password": "<string>" }`, both required.
-- Success: 200 `{ "token": "<JWT>", "user": { "employee_id", "full_name", "role", "center_id" } }`.
-- Errors: 400 `VALIDATION_FAILED` (missing field, adds `fields`); 401 `INVALID_CREDENTIALS` (wrong username or password, same message for both).
-- Example request: `curl.exe -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"nv1\",\"password\":\"Mekong@123\"}"`
-- Example response (success, `nv1`):
-
-```json
-{"token":"eyJhbGciOi...(truncated)","user":{"employee_id":2,"full_name":"Lê Văn Bình","role":"NHAN_VIEN_TIEP_NHAN","center_id":1}}
+```bash
+NV=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"nv1","password":"Mekong@123"}' | jq -r .token)
+QL=$(curl -s -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"ql1","password":"Mekong@123"}' | jq -r .token)
 ```
 
-Example response (empty body, 400):
+(On Windows PowerShell use `curl.exe` and escape the quotes; `scripts/api-run.ps1` does this.)
 
-```json
-{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"username":"Bắt buộc nhập tên đăng nhập","password":"Bắt buộc nhập mật khẩu"}}}
-```
+---
 
-### 3. GET /api/customers?phone=&name=
+## 1. GET /api/health
 
-- Description: look up a customer by phone, with their devices. `name` is optional and used to cross-check.
-- Auth: token. Roles: <<VERIFY>>.
-- Request: query `phone` (required; 10 digits starting with 0), `name` (optional).
-- Success: 200 `{ "customer": {...}, "devices": [...] }`.
-- Errors: 400 `VALIDATION_FAILED` (`fields.phone` missing or bad format); 404 `CUSTOMER_NOT_FOUND`; 401 `UNAUTHORIZED`.
-- Example request: `GET /api/customers?phone=0901234567` with `Authorization: Bearer <token>`.
-- Example response (200, device list shortened):
+**Description.** Liveness check used by the container healthcheck.
+**Token / roles.** No token.
+**Request.** No parameters.
+**Success.** `200` with `{"status":"ok"}`.
+**Errors.** None observed.
 
-```json
-{
-  "customer": { "customer_id": 1, "full_name": "Nguyễn Văn An", "phone": "090****567", "email": "an@example.com", "is_deleted": false },
-  "devices": [
-    { "device_id": 1, "customer_id": 1, "device_name": "iPhone 13", "serial_no": "SN-AN-0001", "purchase_date": "2026-03-01", "warranty_months": 12, "is_deleted": false }
-  ]
-}
+```bash
+curl -i http://localhost:3000/api/health
 ```
 
 ```json
-// phone=0999999999 -> 404
-{"error":{"code":"CUSTOMER_NOT_FOUND","message":"Chưa có khách hàng với số điện thoại này"}}
-// phone=123 -> 400
-{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"phone":"Số điện thoại phải đủ 10 chữ số, bắt đầu bằng 0"}}}
+{"status":"ok"}
 ```
 
-### 4. POST /api/customers
+## 2. POST /api/auth/login
 
-- Description: create a customer.
-- Auth: token. Roles: <<VERIFY>>.
-- Request body: `full_name` (required, max 120), `phone` (required; format and duplicate checks in the service), `email` (optional, must look like an email).
-- Success: 201 with the created customer.
-- Errors: 400 `VALIDATION_FAILED`; 409 `PHONE_EXISTS` (duplicate phone); 401 `UNAUTHORIZED`.
-- Example request: `{ "full_name": "<<name>>", "phone": "<<phone>>", "email": "<<email>>" }`
-- Example response: <<PASTE real 201 body from api-run-output.txt, section "04 customers create">>
-- Error example: <<PASTE real 409 body, section "04 customers create trung SDT">>
+**Description.** Exchange a username and password for a JWT.
+**Token / roles.** No token.
+**Request.** Body: `username` (string), `password` (string).
+**Success.** `200` with `token` and `user` (`employee_id`, `full_name`, `role`, `center_id`).
+**Errors.** `401 INVALID_CREDENTIALS` for a wrong password.
 
-### 5. GET /api/customers/:id
-
-- Description: get one customer.
-- Auth: token. Roles: <<VERIFY with nv1 and ql1>>.
-- Request: path `:id`.
-- Success: 200 <<PASTE: shape>>.
-- Errors: 400 (bad id); 404 `CUSTOMER_NOT_FOUND`; 401.
-- Example request: `GET /api/customers/<<id>>`
-- Example response: <<PASTE real 200, section "05 customers get">>
-
-### 6. PATCH /api/customers/:id
-
-- Description: update a customer.
-- Auth: token. Roles: <<VERIFY with nv1 and ql1>>.
-- Request body: at least one of `full_name` (not blank, max 120), `phone` (not blank), `email` (valid email, or blank/null to clear). Empty body returns 400 with `fields.body`.
-- Success: 200 <<PASTE: shape>>.
-- Errors: 400 `VALIDATION_FAILED`; 404 `CUSTOMER_NOT_FOUND`; 409 `PHONE_EXISTS`; 401.
-- Example request: `{ "email": "<<email>>" }`
-- Example response: <<PASTE real 200, section "06 customers patch">>
-
-### 7. POST /api/customers/:id/soft-delete
-
-- Description: soft-delete a customer (sets `is_deleted`; the row is kept).
-- Auth: token. Roles: <<VERIFY with nv1 and ql1>>.
-- Request: path `:id`, no body.
-- Success: <<PASTE status and shape>>.
-- Errors: 400 (bad id); 404 `CUSTOMER_NOT_FOUND`; 401.
-- Example request: `POST /api/customers/<<id>>/soft-delete`
-- Example response: <<PASTE real response, section "07 customers soft-delete">>
-
-### 8. GET /api/tickets
-
-- Description: list tickets, paged. `?warranty_verified=false` lists tickets awaiting manager verification.
-- Auth: token. Roles: staff and manager can list (verified with `nv1`); <<VERIFY who may use `warranty_verified=false`: sections "08 tickets cho duyet ql/nv">>.
-- Request: query `page`, `size`, `warranty_verified` (only `false` is accepted; any other value returns 400).
-- Success: 200 `{ "data": [...], "page", "size", "total" }`.
-- Errors: 400 `VALIDATION_FAILED`; 403 `FORBIDDEN` <<VERIFY>>; 401.
-- Example request: `GET /api/tickets?page=1&size=2`
-- Example response (200, one ticket shown):
-
-```json
-{
-  "data": [
-    {
-      "ticket_id": 3, "ticket_code": "BH-000003/2026", "device_id": 3, "category_id": 2, "center_id": 1,
-      "issue_desc": "Pin tụt nhanh, sạc không đầy", "priority": "TRUNG_BINH", "status": "MOI",
-      "provided_purchase_date": null, "is_warranty": false, "warranty_verified": false,
-      "received_at": "2026-10-15T11:00:00+07:00", "due_date": "2026-10-19T11:00:00+07:00", "closed_at": null,
-      "is_deleted": false, "device_name": "Xiaomi Redmi Note 12", "serial_no": "SN-BICH-0001",
-      "customer_id": 2, "customer_name": "Trần Thị Bích", "customer_phone": "091****678", "category_name": "PIN"
-    }
-  ],
-  "page": 1, "size": 2, "total": 3
-}
+```bash
+curl -i -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"nv1","password":"Mekong@123"}'
 ```
 
-### 9. POST /api/tickets
-
-- Description: create a warranty ticket and its first status-log row in one transaction.
-- Auth: token. Roles: <<VERIFY>>.
-- Request body: `customer_id` (required, positive integer), `device_id` (required, positive integer), `issue_desc` (required, 10 to 2000 chars), `provided_purchase_date` (optional, `YYYY-MM-DD`). `center_id` comes from the token, never from the body.
-- Success: 201 with the created ticket.
-- Errors: 400 `VALIDATION_FAILED` (9 characters rejected, 10 accepted: TC-05/TC-06; missing `issue_desc` returns `fields.issue_desc`); 404 `CUSTOMER_NOT_FOUND` or `DEVICE_NOT_FOUND`; 401.
-- Example request: `{ "customer_id": 1, "device_id": 1, "issue_desc": "Màn hình bị sọc ngang, cảm ứng kém" }`
-- Example response: <<PASTE real 201 body, section "09 tickets create">>
-- Error example: <<PASTE real 400 body, section "09 tickets create 9 ky tu">>
-
-### 10. GET /api/tickets/:id
-
-- Description: get one ticket (flat object, no `data` wrapper).
-- Auth: token. Staff and manager of the ticket's own center.
-- Request: path `:id`.
-- Success: 200, same fields as one item of the ticket list.
-- Errors: 400 (bad id); 403 `FORBIDDEN` (ticket belongs to another center, TC-09); 404 `TICKET_NOT_FOUND`; 401.
-- Example request: `GET /api/tickets/3`
-- Example response: <<PASTE real 200, section "10 tickets get nv">>
-
 ```json
-// nv2 (center 2) reading ticket 3 -> 403
-{"error":{"code":"FORBIDDEN","message":"Phiếu này thuộc trung tâm khác, bạn không có quyền truy cập"}}
+{"token":"<token>","user":{"employee_id":2,"full_name":"Lê Văn Bình","role":"NHAN_VIEN_TIEP_NHAN","center_id":1}}
 ```
 
-### 11. PATCH /api/tickets/:id
-
-- Description: update a ticket, only while it is still new (`MOI`).
-- Auth: token. Roles: <<VERIFY with nv1 and ql1>>.
-- Request body: at least one of `issue_desc` (10 to 2000), `category_id` (positive integer or `null`), `priority` (`CAO`, `TRUNG_BINH`, `THAP`). Empty body returns 400 with `fields.body`.
-- Success: 200 <<PASTE: shape>>.
-- Errors: 400 `INVALID_PRIORITY` or `VALIDATION_FAILED` (TC-08, never 500); 403 `FORBIDDEN` (other center); 404 `TICKET_NOT_FOUND`; 409 `TICKET_NOT_EDITABLE`; 401.
-- Example request: `{ "priority": "CAO" }`
-- Example response: <<PASTE real 200, section "11 tickets patch">>
-- Error example: <<PASTE real 400, section "11 tickets patch priority sai">>
-
-### 12. PATCH /api/tickets/:id/approve-warranty
-
-- Description: the manager of the ticket's center approves a warranty that could not be verified automatically (`warranty_verified` becomes true).
-- Auth: token. Manager only: <<VERIFY: nv1 gets 403, ql1 succeeds; sections "12 approve">>.
-- Request body: `is_warranty` (required, boolean), `note` (optional, string, max 500).
-- Success: 200 <<PASTE: shape>>.
-- Errors: 400 `VALIDATION_FAILED`; 403 `FORBIDDEN`; 404 `TICKET_NOT_FOUND`; 409 `WARRANTY_ALREADY_VERIFIED` (second approval); 401.
-- Example request: `{ "is_warranty": true, "note": "<<note>>" }`
-- Example response: <<PASTE real 200, section "12 approve ql lan 1">>
-- Error examples: <<PASTE real 403 (nv) and 409 (second call)>>
-
-### 13. GET /api/tickets/:id/status-log
-
-- Description: status history of a ticket, oldest first or as the API returns it <<VERIFY order>>.
-- Auth: token. Manager only; staff gets 403.
-- Request: path `:id`, query `page`, `size`.
-- Success: 200 `{ "data": [...], "page", "size", "total" }`.
-- Errors: 400; 403 `FORBIDDEN`; 404 `TICKET_NOT_FOUND`; 401.
-- Example request: `GET /api/tickets/3/status-log` as `ql1`.
-- Example response (200): <<PASTE real 200, section "13 status-log ql">>
+Error example (wrong password), `401`:
 
 ```json
-// nv1 (staff) -> 403
+{"error":{"code":"INVALID_CREDENTIALS","message":"Tên đăng nhập hoặc mật khẩu không đúng"}}
+```
+
+## 3. GET /api/customers?phone=
+
+**Description.** Look up a customer by phone number and return the customer's devices.
+**Token / roles.** Token required. Run as `NHAN_VIEN_TIEP_NHAN` (phone masked).
+**Request.** Query: `phone`.
+**Success.** `200` with `customer`, `devices` (`device_id`, `customer_id`, `device_name`, `serial_no`, `purchase_date`, `warranty_months`, `is_deleted`) and `warning` (`null` in the run).
+**Errors.** `401 UNAUTHORIZED` without a token.
+
+```bash
+curl -i "http://localhost:3000/api/customers?phone=0901234567" -H "Authorization: Bearer $NV"
+```
+
+```json
+{"customer":{"customer_id":1,"full_name":"Nguyễn Văn An","phone":"090****567","email":"an@example.com","is_deleted":false},"devices":[{"device_id":1,"customer_id":1,"device_name":"iPhone 13","serial_no":"SN-AN-0001","purchase_date":"2026-03-01","warranty_months":12,"is_deleted":false},{"device_id":2,"customer_id":1,"device_name":"Samsung Galaxy A54","serial_no":"SN-AN-0002","purchase_date":"2024-01-15","warranty_months":12,"is_deleted":false}],"warning":null}
+```
+
+## 4. POST /api/customers
+
+**Description.** Create a customer.
+**Token / roles.** Token required. Run as `NHAN_VIEN_TIEP_NHAN`.
+**Request.** Body: `full_name` (required), `phone`, `email`.
+**Success.** `201` with the customer (`customer_id`, `full_name`, `phone`, `email`, `is_deleted`).
+**Errors.** `400 VALIDATION_FAILED` when `full_name` is missing (`fields.full_name`). `409 PHONE_EXISTS` when the phone is already used; `details.existing_customer` holds the existing customer.
+
+```bash
+curl -i -X POST http://localhost:3000/api/customers -H "Authorization: Bearer $NV" -H "Content-Type: application/json" -d '{"full_name":"Khach Thu API","phone":"0965838162","email":"thu@example.com"}'
+```
+
+```json
+{"customer_id":13,"full_name":"Khach Thu API","phone":"096****162","email":"thu@example.com","is_deleted":false}
+```
+
+Duplicate phone, `409`:
+
+```json
+{"error":{"code":"PHONE_EXISTS","message":"Số điện thoại này đã có khách hàng","details":{"existing_customer":{"customer_id":13,"full_name":"Khach Thu API","phone":"096****162","email":"thu@example.com","is_deleted":false}}}}
+```
+
+Missing name, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"full_name":"Bắt buộc nhập họ tên"}}}
+```
+
+## 5. GET /api/customers/:id
+
+**Description.** Get one customer.
+**Token / roles.** Token required. `NHAN_VIEN_TIEP_NHAN` sees a masked phone; `QUAN_LY` sees the full phone.
+**Request.** Path: `id` (positive integer).
+**Success.** `200` with the customer object.
+**Errors.** `400 VALIDATION_FAILED` when `id` is not a positive integer (`fields.id`). `404 CUSTOMER_NOT_FOUND`.
+
+```bash
+curl -i http://localhost:3000/api/customers/13 -H "Authorization: Bearer $QL"
+```
+
+```json
+{"customer_id":13,"full_name":"Khach Thu API","phone":"0965838162","email":"thu@example.com","is_deleted":false}
+```
+
+`GET /api/customers/abc`, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"id":"Phải là số nguyên dương"}}}
+```
+
+`GET /api/customers/999999`, `404`:
+
+```json
+{"error":{"code":"CUSTOMER_NOT_FOUND","message":"Không tìm thấy khách hàng"}}
+```
+
+## 6. PATCH /api/customers/:id
+
+**Description.** Update the name, phone or email of a customer.
+**Token / roles.** Token required. Both `NHAN_VIEN_TIEP_NHAN` and `QUAN_LY` got `200`.
+**Request.** Path: `id`. Body: at least one of `full_name`, `phone`, `email`.
+**Success.** `200` with the updated customer.
+**Errors.** `400 VALIDATION_FAILED` for an empty body (`fields.body`).
+
+```bash
+curl -i -X PATCH http://localhost:3000/api/customers/13 -H "Authorization: Bearer $QL" -H "Content-Type: application/json" -d '{"full_name":"Khach Thu API (sua)","email":"sua@example.com"}'
+```
+
+```json
+{"customer_id":13,"full_name":"Khach Thu API (sua)","phone":"0965838162","email":"sua@example.com","is_deleted":false}
+```
+
+Empty body, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"body":"Cần ít nhất một trường: full_name, phone, email"}}}
+```
+
+## 7. POST /api/customers/:id/soft-delete
+
+**Description.** Soft-delete a customer (sets `is_deleted` to `true`).
+**Token / roles.** Token required. `NHAN_VIEN_TIEP_NHAN` got `200`.
+**Request.** Path: `id`. No body.
+**Success.** `200` with the customer and `is_deleted: true`.
+**Errors.** `404 CUSTOMER_NOT_FOUND` when the customer does not exist or is already deleted (seen when `QUAN_LY` called it after `NHAN_VIEN_TIEP_NHAN` had deleted the customer).
+
+```bash
+curl -i -X POST http://localhost:3000/api/customers/13/soft-delete -H "Authorization: Bearer $NV"
+```
+
+```json
+{"customer_id":13,"full_name":"Khach Thu API (sua)","phone":"096****162","email":"sua@example.com","is_deleted":true}
+```
+
+## 8. GET /api/tickets
+
+**Description.** List warranty tickets, newest first by `ticket_id` order as returned in the run. With `warranty_verified=false` it lists tickets waiting for approval.
+**Token / roles.** Token required. The plain list works for both roles. The filter `warranty_verified=false` works for `QUAN_LY` only (`NHAN_VIEN_TIEP_NHAN` gets `403`).
+**Request.** Query: `page`, `size` (1–100), `warranty_verified` (only the value `false` is accepted).
+**Success.** `200` with `{"data":[ticket,...],"page","size","total"}`.
+**Errors.** `401 UNAUTHORIZED` without a token. `400 VALIDATION_FAILED` for `size=0` (`fields.size`) or `warranty_verified=true` (`fields.warranty_verified`). `403 FORBIDDEN` as described above.
+
+```bash
+curl -i "http://localhost:3000/api/tickets?page=1&size=2" -H "Authorization: Bearer $NV"
+```
+
+Response (shortened to the first ticket; the run returned 2 tickets, `total` 3):
+
+```json
+{"data":[{"ticket_id":1,"ticket_code":"BH-000001/2026","device_id":1,"category_id":1,"center_id":1,"issue_desc":"Màn hình bị sọc ngang","priority":"CAO","status":"MOI","provided_purchase_date":null,"is_warranty":true,"warranty_verified":true,"received_at":"2026-10-12T09:00:00+07:00","due_date":"2026-10-13T09:00:00+07:00","closed_at":null,"is_deleted":false,"device_name":"iPhone 13","serial_no":"SN-AN-0001","customer_id":1,"customer_name":"Nguyễn Văn An","customer_phone":"090****567","category_name":"MAN_HINH"}],"page":1,"size":2,"total":3}
+```
+
+Errors, `400` / `401` / `403`:
+
+```json
+{"error":{"code":"UNAUTHORIZED","message":"Bạn chưa đăng nhập"}}
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"size":"Phải là số nguyên từ 1 đến 100"}}}
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"warranty_verified":"Chỉ nhận giá trị false"}}}
 {"error":{"code":"FORBIDDEN","message":"Chỉ Quản lý trung tâm được thực hiện thao tác này"}}
 ```
 
-### 14. POST /api/tickets/:id/soft-delete
+`GET /api/tickets?warranty_verified=false` as `QUAN_LY` returned `total: 1` (ticket 3, `warranty_verified: false`, `size: 20`).
 
-- Description: soft-delete a ticket (`is_deleted`; no physical delete, NFR4).
-- Auth: token. Roles: <<VERIFY with nv1 and ql1>>.
-- Request: path `:id`, no body.
-- Success: <<PASTE status and shape>>.
-- Errors: 400; 403 `FORBIDDEN` (other center, TC-09); 404 `TICKET_NOT_FOUND`; 401.
-- Example request: `POST /api/tickets/<<id>>/soft-delete`
-- Example response: <<PASTE real response, section "14 tickets soft-delete">>
+## 9. POST /api/tickets
 
-### 15. GET /api/issue-categories
+**Description.** Create a warranty ticket. The response shows the status `MOI`, the priority and the due date set by the system.
+**Token / roles.** Token required. Run as `NHAN_VIEN_TIEP_NHAN`.
+**Request.** Body fields used in the run: `device_id`, `category_id`, `issue_desc` (required, 10 to 2000 characters).
+**Success.** `201` with the ticket object.
+**Errors.** `400 VALIDATION_FAILED` for `issue_desc` shorter than 10 characters or missing (`fields.issue_desc`).
 
-- Description: list issue categories. Defined in `src/app.js`, no paging.
-- Auth: token, any logged-in user (verified with `nv1`).
-- Request: no parameters.
-- Success: 200 `{ "data": [...] }`.
-- Errors: 401.
-- Example request: `GET /api/issue-categories`
-- Example response (200, shortened):
-
-```json
-{ "data": [
-  { "category_id": 2, "category_name": "PIN", "default_priority": "TRUNG_BINH", "is_active": true },
-  { "category_id": 5, "category_name": "NUOC_VAO", "default_priority": "CAO", "is_active": true }
-] }
+```bash
+curl -i -X POST http://localhost:3000/api/tickets -H "Authorization: Bearer $NV" -H "Content-Type: application/json" -d '{"device_id":1,"category_id":1,"issue_desc":"Man hinh soc ngang, cam ung kem"}'
 ```
 
-## Error codes
+```json
+{"ticket_id":4,"ticket_code":"BH-000004/2026","device_id":1,"category_id":1,"center_id":1,"issue_desc":"Man hinh soc ngang, cam ung kem","priority":"CAO","status":"MOI","provided_purchase_date":null,"is_warranty":true,"warranty_verified":true,"received_at":"2026-11-14T02:34:01+07:00","due_date":"2026-11-16T02:34:01+07:00","closed_at":null,"is_deleted":false,"device_name":"iPhone 13","serial_no":"SN-AN-0001","customer_id":1,"customer_name":"Nguyễn Văn An","customer_phone":"090****567","category_name":"MAN_HINH"}
+```
 
-All errors use `{ "error": { "code", "message" } }`.
+Nine characters, `400`:
 
-| HTTP | `code` | When |
-|---|---|---|
-| 400 | `VALIDATION_FAILED` | Missing/invalid field, bad id or paging, body is not valid JSON (adds `fields`) |
-| 400 | `INVALID_PRIORITY` | Priority value not allowed (TC-08) |
-| 401 | `UNAUTHORIZED` | No token, invalid or expired token (TC-10) |
-| 401 | `INVALID_CREDENTIALS` | Wrong username or password at login |
-| 403 | `FORBIDDEN` | Role not allowed, or the ticket belongs to another service center (TC-09) |
-| 404 | `CUSTOMER_NOT_FOUND`, `DEVICE_NOT_FOUND`, `TICKET_NOT_FOUND`, `CATEGORY_NOT_FOUND` | Resource does not exist |
-| 404 | `NOT_FOUND` | Unknown `/api/...` path |
-| 409 | `PHONE_EXISTS` | Customer phone already registered |
-| 409 | `WARRANTY_ALREADY_VERIFIED` | Ticket already approved |
-| 409 | `TICKET_NOT_EDITABLE` | Ticket state does not allow editing |
-| 503 | `DB_UNAVAILABLE` | Database unreachable |
-| 500 | `INTERNAL_ERROR` | Unexpected server error. Generic message plus a lookup code (`X-Request-Id`); stack trace is logged on the server only. |
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"issue_desc":"Mô tả lỗi phải có từ 10 đến 2000 ký tự"}}}
+```
+
+Missing `issue_desc`, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"issue_desc":"Trường bắt buộc, không được để trống"}}}
+```
+
+## 10. GET /api/tickets/:id
+
+**Description.** Get one ticket.
+**Token / roles.** Token required. Both roles got `200`; the phone is masked for `NHAN_VIEN_TIEP_NHAN` and full for `QUAN_LY`.
+**Request.** Path: `id`.
+**Success.** `200` with the ticket object.
+**Errors.** `404 TICKET_NOT_FOUND`.
+
+```bash
+curl -i http://localhost:3000/api/tickets/4 -H "Authorization: Bearer $QL"
+```
+
+Response: the ticket of endpoint 9 with `"customer_phone":"0901234567"`.
+
+`GET /api/tickets/999999`, `404`:
+
+```json
+{"error":{"code":"TICKET_NOT_FOUND","message":"Không tìm thấy phiếu bảo hành"}}
+```
+
+## 11. PATCH /api/tickets/:id
+
+**Description.** Update `issue_desc`, `category_id` or `priority` of a ticket. When the priority changes, the due date is recalculated (in the run, `CAO` to `THAP` moved `due_date` from 16 Nov to 20 Nov).
+**Token / roles.** Token required. Both `NHAN_VIEN_TIEP_NHAN` and `QUAN_LY` got `200`.
+**Request.** Path: `id`. Body: at least one of `issue_desc`, `category_id`, `priority` (`CAO`, `TRUNG_BINH`, `THAP`).
+**Success.** `200` with the updated ticket.
+**Errors.** `400 VALIDATION_FAILED` for an invalid priority (`fields.priority`) or an empty body (`fields.body`).
+
+```bash
+curl -i -X PATCH http://localhost:3000/api/tickets/4 -H "Authorization: Bearer $QL" -H "Content-Type: application/json" -d '{"priority":"THAP"}'
+```
+
+Response (shortened to the changed fields; the other fields are as in endpoint 9, with `"customer_phone":"0901234567"`):
+
+```json
+{"ticket_id":4,"priority":"THAP","status":"MOI","due_date":"2026-11-20T02:34:01+07:00"}
+```
+
+Invalid priority, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"priority":"Phải là CAO, TRUNG_BINH hoặc THAP"}}}
+```
+
+Empty body, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"body":"Cần ít nhất một trường: issue_desc, category_id, priority"}}}
+```
+
+## 12. PATCH /api/tickets/:id/approve-warranty
+
+**Description.** The center manager confirms whether a ticket is covered by warranty. It sets `warranty_verified` to `true` and `is_warranty` to the given value. A ticket can be approved once.
+**Token / roles.** Token required. `QUAN_LY` only; `NHAN_VIEN_TIEP_NHAN` gets `403`.
+**Request.** Path: `id`. Body: `is_warranty` (required, `true` or `false`).
+**Success.** `200` with the updated ticket.
+**Errors.** `400 VALIDATION_FAILED` when `is_warranty` is missing (`fields.is_warranty`). `403 FORBIDDEN`. `409 WARRANTY_ALREADY_VERIFIED` on the second call.
+
+```bash
+curl -i -X PATCH http://localhost:3000/api/tickets/3/approve-warranty -H "Authorization: Bearer $QL" -H "Content-Type: application/json" -d '{"is_warranty":true}'
+```
+
+```json
+{"ticket_id":3,"ticket_code":"BH-000003/2026","device_id":3,"category_id":2,"center_id":1,"issue_desc":"Pin tụt nhanh, sạc không đầy","priority":"TRUNG_BINH","status":"MOI","provided_purchase_date":null,"is_warranty":true,"warranty_verified":true,"received_at":"2026-10-15T11:00:00+07:00","due_date":"2026-10-19T11:00:00+07:00","closed_at":null,"is_deleted":false,"device_name":"Xiaomi Redmi Note 12","serial_no":"SN-BICH-0001","customer_id":2,"customer_name":"Trần Thị Bích","customer_phone":"0912345678","category_name":"PIN"}
+```
+
+Second call, `409`:
+
+```json
+{"error":{"code":"WARRANTY_ALREADY_VERIFIED","message":"Phiếu này đã được xác minh bảo hành, không duyệt lại được"}}
+```
+
+Missing `is_warranty`, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"is_warranty":"Bắt buộc, là true hoặc false"}}}
+```
+
+## 13. GET /api/tickets/:id/status-log
+
+**Description.** The status history of a ticket, with the employee who made each change.
+**Token / roles.** Token required. `QUAN_LY` only; `NHAN_VIEN_TIEP_NHAN` gets `403`.
+**Request.** Path: `id`. Query: `page`, `size`.
+**Success.** `200` with `{"data":[{log_id, ticket_id, from_status, to_status, changed_by, changed_at, changed_by_name}],"page","size","total"}`.
+**Errors.** `403 FORBIDDEN` for `NHAN_VIEN_TIEP_NHAN`.
+
+```bash
+curl -i "http://localhost:3000/api/tickets/3/status-log?page=1&size=10" -H "Authorization: Bearer $QL"
+```
+
+```json
+{"data":[{"log_id":3,"ticket_id":3,"from_status":null,"to_status":"MOI","changed_by":2,"changed_at":"2026-10-15T11:00:00+07:00","changed_by_name":"Lê Văn Bình"}],"page":1,"size":10,"total":1}
+```
+
+A new ticket (ticket 4) has one log entry when created: `from_status: null`, `to_status: "MOI"`, `changed_by: 2`.
+
+## 14. POST /api/tickets/:id/soft-delete
+
+**Description.** Soft-delete a ticket.
+**Token / roles.** Token required. `QUAN_LY` only; `NHAN_VIEN_TIEP_NHAN` gets `403`.
+**Request.** Path: `id`. No body.
+**Success.** `200` with `{"ticket_id":4,"is_deleted":true}`.
+**Errors.** `403 FORBIDDEN` for `NHAN_VIEN_TIEP_NHAN`.
+
+```bash
+curl -i -X POST http://localhost:3000/api/tickets/4/soft-delete -H "Authorization: Bearer $QL"
+```
+
+```json
+{"ticket_id":4,"is_deleted":true}
+```
+
+## 15. GET /api/issue-categories
+
+**Description.** List the issue categories with their default priority.
+**Token / roles.** Token required.
+**Request.** No parameters.
+**Success.** `200` with `{"data":[{category_id, category_name, default_priority, is_active}]}`.
+**Errors.** `401 UNAUTHORIZED` without a token.
+
+```bash
+curl -i http://localhost:3000/api/issue-categories -H "Authorization: Bearer $NV"
+```
+
+```json
+{"data":[{"category_id":1,"category_name":"MAN_HINH","default_priority":"CAO","is_active":true},{"category_id":2,"category_name":"PIN","default_priority":"TRUNG_BINH","is_active":true},{"category_id":3,"category_name":"SAC","default_priority":"TRUNG_BINH","is_active":true},{"category_id":4,"category_name":"PHAN_MEM","default_priority":"THAP","is_active":true},{"category_id":5,"category_name":"NUOC_VAO","default_priority":"CAO","is_active":true},{"category_id":6,"category_name":"KHAC","default_priority":"THAP","is_active":true}]}
+```
