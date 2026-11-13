@@ -3,13 +3,14 @@
 Sinh viên: Đoàn Xuân Tiến · MSSV 2374802010493
 
 **Cách chạy**
-- `npm test`: unit và route, không cần CSDL. Ngày 13/11/2026: 37 passed (5 suite: 33 unit/route, 2 nhất quán lược đồ, 2 nhất quán tài liệu).
-- `$env:DB_NAME="smartcrm_test"; npm run test:integration`: tích hợp và API trên PostgreSQL thử. 33 passed (5 suite, chạy ngày 6/11/2026).
-- Một lệnh cho cả hai: `$env:DB_NAME="smartcrm_test"; npm run test:all`.
+- `npm test`: unit và route, không cần CSDL. Ngày 14/11/2026: 37 passed (5 suite: 33 unit/route, 2 nhất quán lược đồ, 2 nhất quán tài liệu).
+- `$env:DB_NAME="smartcrm_test"; npm run test:integration`: tích hợp và API trên PostgreSQL thử. Ngày 14/11/2026: 33 passed (5 suite).
+- Một lệnh cho cả hai: `$env:DB_NAME="smartcrm_test"; npm run test:all`. Ngày 14/11/2026: 10 suite, 70 test PASS (37 + 33); ảnh `docs/screenshots/test-all-pass.png`.
+- Điều kiện chạy bộ tích hợp: PostgreSQL cục bộ, CSDL `smartcrm_test` (tạo bằng `createdb -U postgres smartcrm_test`, nạp bằng `npm run db:setup`), `.env` có `DB_PASSWORD` đúng. Bộ test từ chối chạy trên CSDL không có chữ "test" trong tên.
 - Trong container: `docker compose exec app npm test`: 35 passed (4 suite; `.dockerignore` loại test đọc README).
 - Chạy riêng một test: `npx jest <tệp> -t "<tên test>" --testPathIgnorePatterns=/node_modules/`.
 
-**Nguồn kết quả thực tế (mục 6 của mỗi test case):** lần chạy ngày 6/11/2026 trên bản clone sạch `D:\clean-bt3`. Mã TC-xx ở báo cáo khác số trong tên test của tệp; dùng dòng "Tên test trong code" để tra.
+**Nguồn kết quả thực tế (mục 6 của mỗi test case):** lần chạy ngày 6/11/2026 trên bản clone sạch `D:\clean-bt3`, chạy lại và xác nhận ngày 14/11/2026 bằng `npm run test:all`. Mã TC-xx ở báo cáo khác số trong tên test của tệp; dùng dòng "Tên test trong code" để tra.
 
 ## Tổng quan
 
@@ -59,7 +60,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** `{isWarranty: true}`.
 4. **Kết quả mong đợi:** bước 1 `FORBIDDEN`; bước 2 thành công, `warrantyVerified = true`; bước 3 `WARRANTY_ALREADY_VERIFIED` (409).
 5. **Tên test trong code:** `tests/ticket.service.test.js` → "Phê duyệt bảo hành: chỉ Quản lý, và chỉ một lần (409)"
-6. **Kết quả thực tế:** nằm trong 12/12 PASS của `ticket.service.test.js`.
+6. **Kết quả thực tế:** nằm trong 12/12 PASS của `ticket.service.test.js`. Trên hệ thống thật (14/11/2026), `PATCH /api/tickets/3/approve-warranty` bằng `nv1` trả 403, bằng `ql1` lần đầu trả 200, lần hai trả 409 `WARRANTY_ALREADY_VERIFIED` (xem `docs/api-docs.md`, endpoint 12).
 7. **PASS/FAIL:** PASS
 
 ### TC-05 · Giá trị biên (dưới ranh giới) · API · Ưu tiên Cao
@@ -86,7 +87,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** `{customer_id:1, device_id:1, issue_desc:""}`.
 4. **Kết quả mong đợi:** lỗi `VALIDATION_FAILED`, chi tiết có tên trường `issue_desc`.
 5. **Tên test trong code:** `tests/ticket.service.test.js` → "TC03 - Dữ liệu sai …"
-6. **Kết quả thực tế:** nằm trong 12/12 PASS của `ticket.service.test.js`. Test này kiểm mã lỗi nghiệp vụ và tên trường; mã HTTP 400 kèm `fields` được kiểm ở `tests/api.test.js` và thấy khi gọi API thật (`VALIDATION_FAILED`, `fields.username` / `fields.password`).
+6. **Kết quả thực tế:** nằm trong 12/12 PASS của `ticket.service.test.js`. Test này kiểm mã lỗi nghiệp vụ và tên trường; mã HTTP 400 kèm `fields` được kiểm ở `tests/api.test.js` và thấy khi gọi API thật (`VALIDATION_FAILED`, `fields.issue_desc`; xem `docs/api-docs.md`, endpoint 9).
 7. **PASS/FAIL:** PASS
 
 ### TC-08 · Dữ liệu sai · API · Ưu tiên Trung bình
@@ -136,7 +137,8 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 
 ## Ghi chú trung thực
 
-- Kết quả PASS ghi theo lần chạy ngày 6/11/2026 trên bản clone sạch; số test của `npm test` đã tăng từ 33 lên 37 sau khi thêm test nhất quán lược đồ và tài liệu, các test case trên không thay đổi.
+- Kết quả PASS của từng test case ghi theo lần chạy ngày 6/11/2026 trên bản clone sạch và được chạy lại toàn bộ ngày 14/11/2026 (`npm run test:all`: 70 test PASS). Số test của `npm test` đã tăng từ 33 lên 37 sau khi thêm test nhất quán lược đồ và tài liệu; các test case trên không thay đổi.
 - Ngoài 12 test case chính, bộ test còn có test cho QT-03, QT-13, QT-04, A02, A04, A05, đầu vào bất thường và hồi quy BUG-003; chúng chạy cùng các lệnh trên.
 - Phép thử "làm sai có chủ đích" ở TC-09 và TC-12 chỉ để chứng minh test có khả năng thất bại; mã nguồn thật đã được hoàn lại.
-- Ảnh chụp của từng test case nằm ở `docs/screenshots/`. Đối chiếu trước khi nộp: đã có ảnh cho TC-01, 03, 04, 06, 07, 08, 09, 10, 11, 12; còn thiếu ảnh TC-02 và ảnh TC-05 (9 ký tự trả 400, số `ticket` không đổi).
+- Số `ticket` ở các test case (38, 39, 40, 42) là số dòng của CSDL thử `smartcrm_test` tại thời điểm chạy; mỗi test đếm trước và sau nên kết luận không phụ thuộc vào số ban đầu.
+- Ảnh chụp của từng test case nằm ở `docs/screenshots/`; ảnh chạy cả bộ test: `docs/screenshots/test-all-pass.png`.
