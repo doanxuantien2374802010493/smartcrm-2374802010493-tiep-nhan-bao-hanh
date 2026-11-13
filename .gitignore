@@ -13,3 +13,7 @@ coverage/
 .DS_Store
 node_modules/
 .env
+
+api-run-output.txt
+
+api-run-*.txt
