@@ -40,7 +40,7 @@ All example requests and responses were captured from a real run of `scripts/api
 
 | HTTP | Code | Meaning |
 |---|---|---|
-| 400 | `VALIDATION_FAILED` | A field is missing or invalid; `fields` names it. |
+| 400 | `VALIDATION_FAILED` | A field is missing or invalid, or the body is not valid JSON; `fields` names the invalid field. |
 | 401 | `UNAUTHORIZED` | No token (seen on `GET /api/tickets`). |
 | 401 | `INVALID_CREDENTIALS` | Wrong password at login. |
 | 403 | `FORBIDDEN` | The role is not allowed (message: only the center manager may do this). |
@@ -85,9 +85,9 @@ curl -i http://localhost:3000/api/health
 
 **Description.** Exchange a username and password for a JWT.
 **Token / roles.** No token.
-**Request.** Body: `username` (string), `password` (string).
+**Request.** Body: `username` (required, string), `password` (required, string).
 **Success.** `200` with `token` and `user` (`employee_id`, `full_name`, `role`, `center_id`).
-**Errors.** `401 INVALID_CREDENTIALS` for a wrong password.
+**Errors.** `400 VALIDATION_FAILED` when `username` or `password` is missing or blank (`fields.username`, `fields.password`), or when the body is not valid JSON. `401 INVALID_CREDENTIALS` for a wrong password.
 
 ```bash
 curl -i -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{"username":"nv1","password":"Mekong@123"}'
@@ -101,6 +101,18 @@ Error example (wrong password), `401`:
 
 ```json
 {"error":{"code":"INVALID_CREDENTIALS","message":"Tên đăng nhập hoặc mật khẩu không đúng"}}
+```
+
+Empty body `{}`, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Dữ liệu không hợp lệ","fields":{"username":"Bắt buộc nhập tên đăng nhập","password":"Bắt buộc nhập mật khẩu"}}}
+```
+
+Body that is not valid JSON, `400`:
+
+```json
+{"error":{"code":"VALIDATION_FAILED","message":"Nội dung gửi lên không phải JSON hợp lệ"}}
 ```
 
 ## 3. GET /api/customers?phone=
@@ -215,7 +227,7 @@ curl -i -X POST http://localhost:3000/api/customers/13/soft-delete -H "Authoriza
 
 ## 8. GET /api/tickets
 
-**Description.** List warranty tickets, newest first by `ticket_id` order as returned in the run. With `warranty_verified=false` it lists tickets waiting for approval.
+**Description.** List warranty tickets, ordered by `ticket_id` ascending as returned in the run. With `warranty_verified=false` it lists tickets waiting for approval.
 **Token / roles.** Token required. The plain list works for both roles. The filter `warranty_verified=false` works for `QUAN_LY` only (`NHAN_VIEN_TIEP_NHAN` gets `403`).
 **Request.** Query: `page`, `size` (1–100), `warranty_verified` (only the value `false` is accepted).
 **Success.** `200` with `{"data":[ticket,...],"page","size","total"}`.
@@ -231,7 +243,7 @@ Response (shortened to the first ticket; the run returned 2 tickets, `total` 3):
 {"data":[{"ticket_id":1,"ticket_code":"BH-000001/2026","device_id":1,"category_id":1,"center_id":1,"issue_desc":"Màn hình bị sọc ngang","priority":"CAO","status":"MOI","provided_purchase_date":null,"is_warranty":true,"warranty_verified":true,"received_at":"2026-10-12T09:00:00+07:00","due_date":"2026-10-13T09:00:00+07:00","closed_at":null,"is_deleted":false,"device_name":"iPhone 13","serial_no":"SN-AN-0001","customer_id":1,"customer_name":"Nguyễn Văn An","customer_phone":"090****567","category_name":"MAN_HINH"}],"page":1,"size":2,"total":3}
 ```
 
-Errors, `400` / `401` / `403`:
+Errors, `401` / `400` / `400` / `403`:
 
 ```json
 {"error":{"code":"UNAUTHORIZED","message":"Bạn chưa đăng nhập"}}
@@ -244,14 +256,14 @@ Errors, `400` / `401` / `403`:
 
 ## 9. POST /api/tickets
 
-**Description.** Create a warranty ticket. The response shows the status `MOI`, the priority and the due date set by the system.
+**Description.** Create a warranty ticket. The response shows the status `MOI`, and the category, priority and due date set by the system.
 **Token / roles.** Token required. Run as `NHAN_VIEN_TIEP_NHAN`.
-**Request.** Body fields used in the run: `device_id`, `category_id`, `issue_desc` (required, 10 to 2000 characters).
+**Request.** Body: `customer_id` (required, positive integer), `device_id` (required, positive integer), `issue_desc` (required, 10 to 2000 characters), `provided_purchase_date` (optional, `YYYY-MM-DD`). The center comes from the token; a `center_id` in the body is ignored. Other fields are ignored. The system sets `category_id`, `priority` and `due_date`.
 **Success.** `201` with the ticket object.
-**Errors.** `400 VALIDATION_FAILED` for `issue_desc` shorter than 10 characters or missing (`fields.issue_desc`).
+**Errors.** `400 VALIDATION_FAILED`, with `fields` naming each invalid field: `customer_id` or `device_id` missing or not a positive integer; `issue_desc` blank or outside 10 to 2000 characters; `provided_purchase_date` not in `YYYY-MM-DD` format. The run covers the `issue_desc` cases (nine characters, missing); the other fields were not exercised.
 
 ```bash
-curl -i -X POST http://localhost:3000/api/tickets -H "Authorization: Bearer $NV" -H "Content-Type: application/json" -d '{"device_id":1,"category_id":1,"issue_desc":"Man hinh soc ngang, cam ung kem"}'
+curl -i -X POST http://localhost:3000/api/tickets -H "Authorization: Bearer $NV" -H "Content-Type: application/json" -d '{"customer_id":1,"device_id":1,"issue_desc":"Man hinh soc ngang, cam ung kem"}'
 ```
 
 ```json
@@ -294,9 +306,9 @@ Response: the ticket of endpoint 9 with `"customer_phone":"0901234567"`.
 
 **Description.** Update `issue_desc`, `category_id` or `priority` of a ticket. When the priority changes, the due date is recalculated (in the run, `CAO` to `THAP` moved `due_date` from 16 Nov to 20 Nov).
 **Token / roles.** Token required. Both `NHAN_VIEN_TIEP_NHAN` and `QUAN_LY` got `200`.
-**Request.** Path: `id`. Body: at least one of `issue_desc`, `category_id`, `priority` (`CAO`, `TRUNG_BINH`, `THAP`).
+**Request.** Path: `id`. Body: at least one of `issue_desc` (10 to 2000 characters), `category_id` (positive integer, or `null`), `priority` (`CAO`, `TRUNG_BINH`, `THAP`).
 **Success.** `200` with the updated ticket.
-**Errors.** `400 VALIDATION_FAILED` for an invalid priority (`fields.priority`) or an empty body (`fields.body`).
+**Errors.** `400 VALIDATION_FAILED` for an invalid priority (`fields.priority`) or an empty body (`fields.body`). Other invalid values are reported the same way under the field name; they were not exercised in the run.
 
 ```bash
 curl -i -X PATCH http://localhost:3000/api/tickets/4 -H "Authorization: Bearer $QL" -H "Content-Type: application/json" -d '{"priority":"THAP"}'
@@ -324,12 +336,12 @@ Empty body, `400`:
 
 **Description.** The center manager confirms whether a ticket is covered by warranty. It sets `warranty_verified` to `true` and `is_warranty` to the given value. A ticket can be approved once.
 **Token / roles.** Token required. `QUAN_LY` only; `NHAN_VIEN_TIEP_NHAN` gets `403`.
-**Request.** Path: `id`. Body: `is_warranty` (required, `true` or `false`).
+**Request.** Path: `id`. Body: `is_warranty` (required, boolean `true` or `false`), `note` (optional, string of at most 500 characters).
 **Success.** `200` with the updated ticket.
-**Errors.** `400 VALIDATION_FAILED` when `is_warranty` is missing (`fields.is_warranty`). `403 FORBIDDEN`. `409 WARRANTY_ALREADY_VERIFIED` on the second call.
+**Errors.** `400 VALIDATION_FAILED` when `is_warranty` is missing or not a boolean (`fields.is_warranty`). `403 FORBIDDEN`. `409 WARRANTY_ALREADY_VERIFIED` on the second call.
 
 ```bash
-curl -i -X PATCH http://localhost:3000/api/tickets/3/approve-warranty -H "Authorization: Bearer $QL" -H "Content-Type: application/json" -d '{"is_warranty":true}'
+curl -i -X PATCH http://localhost:3000/api/tickets/3/approve-warranty -H "Authorization: Bearer $QL" -H "Content-Type: application/json" -d '{"is_warranty":true,"note":"Da kiem tra hoa don"}'
 ```
 
 ```json
