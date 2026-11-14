@@ -116,7 +116,7 @@ Body that is not valid JSON, `400`:
 ```
 
 ## 3. GET /api/customers?phone=
-
+- GET /api/tickets?warranty_verified=false → 200: danh sách phiếu chờ xác minh của trung tâm mình, có phân trang · 400: tham số không hợp lệ (chỉ nhận giá trị `false`) · 403: vai trò không phải Quản lý.
 **Description.** Look up a customer by phone number and return the customer's devices.
 **Token / roles.** Token required. Run as `NHAN_VIEN_TIEP_NHAN` (phone masked).
 **Request.** Query: `phone`.
