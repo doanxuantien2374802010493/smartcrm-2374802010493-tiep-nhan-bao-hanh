@@ -25,7 +25,8 @@
 | **Claude (Anthropic)** | Soạn bản `docs/api-docs.md` (15 endpoint, mỗi endpoint đủ bảy mục) từ kết quả lần chạy API thật | `docs/api-docs.md` | Chạy `scripts/api-run.ps1` trên hệ thống thật bằng `nv1` và `ql1`; ví dụ request và response chép từ kết quả chạy; kiểm `/api/health` (200, không cần token) và `/api/issue-categories` (401 khi không có token); `npm test` vẫn PASS (có `docs.consistency`). |
 | **Claude (Anthropic)** | Chẩn đoán lỗi `password authentication failed` khi chạy `npm run test:all` và hướng dẫn tạo CSDL `smartcrm_test` | `.env` (không commit), CSDL `smartcrm_test` | Sửa `.env` trên máy, chạy `npm run test:all` trên `smartcrm_test`: 10 suite, 70 test PASS (`docs/screenshots/test-all-pass.png`). |
 | **Claude (Anthropic)** | Hướng dẫn kiểm tra nhánh `main` và `dev` trước khi tag | Quản lý nhánh và tag `v1.0` | Chạy `git branch -a`, `git log main..origin/dev` (kết quả trống), `git merge origin/dev` ("Already up to date"), `git status -sb` sau khi `git push origin main`. |
-
+| **Claude (Anthropic)** | Đối chiếu body endpoint `POST /api/tickets` với `src/validators/` và `scripts/api-run.ps1`, sửa ví dụ request trong `docs/api-docs.md`; đối chiếu số route trong mã với số endpoint trong tài liệu (15) | `docs/api-docs.md` | Chạy `Select-String` đếm route ra 15, so từng route với tiêu đề tài liệu; đọc `src/validators/ticket.validator.js` và `scripts/api-run.ps1`; `npm test` PASS gồm `docs.consistency`. |
+| **Claude (Anthropic)** | Hướng dẫn chụp ảnh minh chứng cho 12 test case và rà Test Report, Bug Log (mức độ, link commit, thứ tự commit) | `docs/test-report.md`, `docs/bug-log.md`, `docs/screenshots/` | Tự chạy từng lệnh trên máy, chụp ảnh `tc-*.png`; chạy `git show --stat`, `git merge-base --is-ancestor`, `git branch -r --contains` cho mọi mã commit trong Bug Log. |
 ---
 
 ### Phần tự làm hoàn toàn, không dùng AI
