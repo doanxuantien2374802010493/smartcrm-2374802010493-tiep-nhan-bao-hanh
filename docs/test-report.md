@@ -96,7 +96,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** `{priority: "KHAN_CAP"}` (không thuộc CAO, TRUNG_BINH, THAP).
 4. **Kết quả mong đợi:** 400, không phải 500.
 5. **Tên test trong code:** `tests/robustness.test.js` → "doi uu tien sang gia tri khong hop le -> 400 …"
-6. **Kết quả thực tế:** 400, không phải 500.
+6. **Kết quả thực tế:** 400, không phải 500; test `doi uu tien sang gia tri khong hop le -> 400` PASS (ảnh `docs/screenshots/tc-08-run.png`).
 7. **PASS/FAIL:** PASS
 
 ### TC-09 · Bảo mật A01 (QT-14) · API · Ưu tiên Cao
@@ -141,4 +141,4 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 - Ngoài 12 test case chính, bộ test còn có test cho QT-03, QT-13, QT-04, A02, A04, A05, đầu vào bất thường và hồi quy BUG-003; chúng chạy cùng các lệnh trên.
 - Phép thử "làm sai có chủ đích" ở TC-09 và TC-12 chỉ để chứng minh test có khả năng thất bại; mã nguồn thật đã được hoàn lại.
 - Số `ticket` và `ticket_status_log` ở TC-02, TC-05, TC-06, TC-11 (68, 69, 70) là số dòng của CSDL thử `smartcrm_test` ngày 14/11/2026. CSDL này tích lũy dữ liệu qua nhiều lần chạy test tích hợp, nên số ban đầu khác với seed gốc (3 phiếu); mỗi test đếm trước và sau nên kết luận không phụ thuộc vào số ban đầu.
-- Ảnh chụp của từng test case nằm ở `docs/screenshots/`; ảnh chạy cả bộ test: `docs/screenshots/test-all-pass.png`.
+- Ảnh chụp của từng test case nằm ở `docs/screenshots/`: `tc-unit-run.png` (TC-01, 03, 04, 07), `tc-02-run.png`, `tc-05-run.png`, `tc-06-run.png`, `tc-08-run.png`, `tc-bao-mat-hoi-quy-run.png` (TC-09, 10, 12), `tc-11-run.png`; ảnh chạy cả bộ test: `test-all-pass.png`.
