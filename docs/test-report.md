@@ -8,9 +8,9 @@ Sinh viên: Đoàn Xuân Tiến · MSSV 2374802010493
 - Một lệnh cho cả hai: `$env:DB_NAME="smartcrm_test"; npm run test:all`. Ngày 14/11/2026: 10 suite, 70 test PASS (37 + 33); ảnh `docs/screenshots/test-all-pass.png`.
 - Điều kiện chạy bộ tích hợp: PostgreSQL cục bộ, CSDL `smartcrm_test` (tạo bằng `createdb -U postgres smartcrm_test`, nạp bằng `npm run db:setup`), `.env` có `DB_PASSWORD` đúng. Bộ test từ chối chạy trên CSDL không có chữ "test" trong tên.
 - Trong container: `docker compose exec app npm test`: 35 passed (4 suite; `.dockerignore` loại test đọc README).
-- Chạy riêng một test: `npx jest <tệp> -t "<tên test>" --testPathIgnorePatterns=/node_modules/`.
+- Chạy riêng một test tích hợp hoặc API: `$env:DB_NAME="smartcrm_test"; npx jest <tệp> --runInBand --testPathIgnorePatterns=/node_modules/ -t "<tên test>"`. Không đặt `DB_NAME` thì bộ test từ chối chạy.
 
-**Nguồn kết quả thực tế (mục 6 của mỗi test case):** lần chạy ngày 6/11/2026 trên bản clone sạch `D:\clean-bt3`, chạy lại và xác nhận ngày 14/11/2026 bằng `npm run test:all`. Mã TC-xx ở báo cáo khác số trong tên test của tệp; dùng dòng "Tên test trong code" để tra.
+**Nguồn kết quả thực tế (mục 6 của mỗi test case):** lần chạy ngày 6/11/2026 trên bản clone sạch `D:\clean-bt3`, chạy lại và xác nhận ngày 14/11/2026 bằng `npm run test:all`. Riêng TC-02, TC-05, TC-06 và TC-11 có số liệu đếm bằng `psql` và ảnh chụp riêng của ngày 14/11/2026. Mã TC-xx ở báo cáo khác số trong tên test của tệp; dùng dòng "Tên test trong code" để tra.
 
 ## Tổng quan
 
@@ -69,7 +69,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** `issue_desc` = "a" × 9 (ràng buộc 10–2000 ký tự).
 4. **Kết quả mong đợi:** 400; không tạo phiếu.
 5. **Tên test trong code:** `tests/robustness.test.js` → "BIEN 9 ky tu -> 400"
-6. **Kết quả thực tế:** 400; `ticket` 39 → 39 (không thêm bản ghi).
+6. **Kết quả thực tế:** 400; `ticket` 69 → 69 (không thêm bản ghi), đếm bằng `psql` trên `smartcrm_test` ngày 14/11/2026 (ảnh `docs/screenshots/tc-05-run.png`).
 7. **PASS/FAIL:** PASS
 
 ### TC-06 · Giá trị biên (trên ranh giới) · API · Ưu tiên Cao
@@ -78,7 +78,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** `issue_desc` = "a" × 10.
 4. **Kết quả mong đợi:** 201; `ticket` tăng 1.
 5. **Tên test trong code:** `tests/robustness.test.js` → "BIEN 10 ky tu -> 201"
-6. **Kết quả thực tế:** 201; `ticket` 39 → 40.
+6. **Kết quả thực tế:** 201; `ticket` 69 → 70, đếm bằng `psql` trên `smartcrm_test` ngày 14/11/2026 (ảnh `docs/screenshots/tc-06-run.png`).
 7. **PASS/FAIL:** PASS
 
 ### TC-07 · Dữ liệu sai · Unit · Ưu tiên Cao
@@ -140,5 +140,5 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 - Kết quả PASS của từng test case ghi theo lần chạy ngày 6/11/2026 trên bản clone sạch và được chạy lại toàn bộ ngày 14/11/2026 (`npm run test:all`: 70 test PASS). Số test của `npm test` đã tăng từ 33 lên 37 sau khi thêm test nhất quán lược đồ và tài liệu; các test case trên không thay đổi.
 - Ngoài 12 test case chính, bộ test còn có test cho QT-03, QT-13, QT-04, A02, A04, A05, đầu vào bất thường và hồi quy BUG-003; chúng chạy cùng các lệnh trên.
 - Phép thử "làm sai có chủ đích" ở TC-09 và TC-12 chỉ để chứng minh test có khả năng thất bại; mã nguồn thật đã được hoàn lại.
-- Số `ticket` ở các test case (38, 39, 40, 42) là số dòng của CSDL thử `smartcrm_test` tại thời điểm chạy; mỗi test đếm trước và sau nên kết luận không phụ thuộc vào số ban đầu.
+- Số `ticket` và `ticket_status_log` ở TC-02, TC-05, TC-06, TC-11 (68, 69, 70) là số dòng của CSDL thử `smartcrm_test` ngày 14/11/2026. CSDL này tích lũy dữ liệu qua nhiều lần chạy test tích hợp, nên số ban đầu khác với seed gốc (3 phiếu); mỗi test đếm trước và sau nên kết luận không phụ thuộc vào số ban đầu.
 - Ảnh chụp của từng test case nằm ở `docs/screenshots/`; ảnh chạy cả bộ test: `docs/screenshots/test-all-pass.png`.
