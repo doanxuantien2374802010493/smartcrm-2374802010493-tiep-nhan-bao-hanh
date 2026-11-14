@@ -42,7 +42,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** `{customer_id:1, device_id:1, issue_desc:"Thiet bi khong len nguon, man hinh soc xanh"}`.
 4. **Kết quả mong đợi:** 201; `ticket_code` đúng dạng `BH-######/####`; mỗi bảng tăng đúng 1; dòng log có `from_status` rỗng, `to_status = MOI`.
 5. **Tên test trong code:** `tests/integration.db.test.js` → "TC-08 tao phieu …"
-6. **Kết quả thực tế:** `ticket` 38 → 39 và `ticket_status_log` 38 → 39 (mỗi bảng +1).
+6. **Kết quả thực tế:** `ticket` 68 → 69 và `ticket_status_log` 68 → 69 (mỗi bảng +1), đếm bằng `psql` trên CSDL `smartcrm_test` ngày 14/11/2026 (ảnh `docs/screenshots/tc-02-run.png`). Test `TC-08 tao phieu` trong `tests/integration.db.test.js` PASS.
 7. **PASS/FAIL:** PASS
 
 ### TC-03 · Luồng đúng · Unit · Ưu tiên Trung bình
@@ -123,7 +123,7 @@ Theo tầng: 4 unit (TC-01, 03, 04, 07) · 3 tích hợp (TC-02, 11, 12) · 5 AP
 3. **Dữ liệu thử:** bảng `customer, device, issue_category, employee, ticket, ticket_status_log`.
 4. **Kết quả mong đợi:** lần hai không lỗi; số dòng mọi bảng không đổi.
 5. **Tên test trong code:** `tests/integration.db.test.js` → "TC-10 db:setup chay lan hai …"
-6. **Kết quả thực tế:** lần hai không lỗi; số dòng giữ nguyên: customer 3, device 4, issue_category 6, employee 3, ticket 42, ticket_status_log 42.
+6. **Kết quả thực tế:** lần chạy thứ hai không lỗi; số dòng giữ nguyên: customer 3, device 4, issue_category 6, employee 3, ticket 69, ticket_status_log 69 (trước và sau giống hệt nhau), ngày 14/11/2026 (ảnh `docs/screenshots/tc-11-run.png`). Test `TC-10 db:setup` trong `tests/integration.db.test.js` PASS.
 7. **PASS/FAIL:** PASS
 
 ### TC-12 · Hồi quy BUG-004 (seed rỗng) · Tích hợp · Ưu tiên Cao
