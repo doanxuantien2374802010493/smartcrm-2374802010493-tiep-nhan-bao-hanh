@@ -124,10 +124,11 @@ Optional: run the seed a second time (`docker compose exec app npm run db:setup`
 | `app` exits with `getaddrinfo EAI_AGAIN db` after re-running `up` | Stale containers/network from a previous run | `docker compose down`, then `docker compose up -d --build` |
 | Empty ticket list / `relation does not exist` | Database volume from an older run | `docker compose down -v`, then `docker compose up -d --build` |
 | Need a full reset | | `docker compose down -v` |
+
 ## Known limitations
 
 - **The React front end is not started by Docker Compose.** Compose starts only `db` and `app` (the API). To run the screens, use a second terminal: `cd src/frontend && npm ci && npm run dev` (http://localhost:5173, which forwards `/api` to port 3000). The checks in "Verify it works" cover the API only.
 - **No API or screen to add a device record for a new customer.** A customer can be created (`POST /api/customers`), but devices exist only in the seed data. A ticket can be created only for an existing device (design change TD-12).
 - **Ticket status never moves past `MOI`.** None of the 15 endpoints changes a ticket's status after creation; the status log holds only the creation entry. This prototype covers intake and classification only.
-- **Demo accounts only.** Two users (`nv1` reception staff, `ql1` center manager) share one demo password from the seed data. Do not use them outside local development.
+- **Demo accounts only.** Three users (`ql1` center manager, `nv1` and `nv2` reception staff) share one demo password from the seed data. Do not use them outside local development.
 - **Local HTTP only.** No TLS and no production deployment; the Compose file is for local use.
