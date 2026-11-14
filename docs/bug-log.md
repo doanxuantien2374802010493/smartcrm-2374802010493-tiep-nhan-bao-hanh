@@ -12,7 +12,7 @@ Lưu ý về commit sửa: BUG-002, BUG-003 và BUG-004 được sửa trong gia
 | BUG-002 | Critical | API chạy bằng dữ liệu giả trong bộ nhớ, không dùng PostgreSQL | [34a1a5c](https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c) |
 | BUG-003 | Major | Repository khách hàng truy vấn cột không tồn tại trong DDL | [34a1a5c](https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c) |
 | BUG-004 | Critical | Tệp seed rỗng: không có tài khoản nào để đăng nhập | [34a1a5c](https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c) |
-| BUG-005 | Critical | Phụ thuộc gián tiếp có lỗ hổng (body-parser high, qs moderate) | [11b667f](https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/11b667f) |
+| BUG-005 | Major | Phụ thuộc gián tiếp có lỗ hổng (body-parser high, qs moderate) | [11b667f](https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/11b667f) |
 | BUG-006 | Minor | `db/schema.sql` lệch 7 bảng so với `migrations/` 6 bảng | [47dafb0](https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/47dafb0) |
 
 ---
@@ -45,7 +45,8 @@ Lưu ý về commit sửa: BUG-002, BUG-003 và BUG-004 được sửa trong gia
    ```
 5. **Nguyên nhân:** `app.js` được nối với bản giả (mock) để chụp ảnh minh họa và chưa bao giờ được nối lại với lớp repository dùng PostgreSQL.
 6. **Cách sửa:** bỏ mock; `src/server.js` tạo `pg.Pool` và nối repositories, services, routes; phiếu và dòng log đầu tiên ghi cùng một transaction.
-7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c (commit gộp; phần sửa bug này nằm ở `src/app.js` và `src/server.js`) · TC-02 PASS: tạo phiếu thì `ticket` và `ticket_status_log` cùng tăng 1 trong PostgreSQL (38 → 39).
+7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c (commit gộp 57 file; phần sửa bug nằm ở `src/server.js`, `src/app.js`, `src/db.js`, `src/config.js`, `src/repositories/`, `src/services/`) · test TC-02 (`TC-08 tao phieu …`) PASS: `ticket` và `ticket_status_log` cùng tăng 1 trên PostgreSQL thật (ảnh `docs/screenshots/tc-02-run.png`).
+
 
 ---
 
@@ -56,12 +57,14 @@ Lưu ý về commit sửa: BUG-002, BUG-003 và BUG-004 được sửa trong gia
 3. **Triệu chứng:** truy vấn báo cột không tồn tại.
 4. **Cách tái lập:**
    ```
+   git show dbb3b6d:src/repositories/customer.repository.js | Select-String "address|segment"
+   # SELECT ... address, segment ... / INSERT INTO customer (..., address, segment, created_at)
    psql -d smartcrm -c "SELECT address, segment FROM customer LIMIT 1"
    # ERROR:  column "address" does not exist
    ```
 5. **Nguyên nhân:** repository viết theo một lược đồ cũ (có `address`, `segment`, `created_at`), còn DDL của BT1 chỉ có `full_name`, `phone`, `email`, `is_deleted`. Lược đồ và mã bị lệch từ khi thiết kế được sửa ở BT1.
 6. **Cách sửa:** viết lại repository chỉ dùng các cột có trong DDL; không thêm cột ngoài thiết kế.
-7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c (commit gộp; phần sửa bug này nằm ở `src/repositories/customer.repository.js`) · TC-23 PASS: tìm khách theo SĐT `0901234567` trả 200 và thấy đúng khách trên PostgreSQL dựng từ migration.
+7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c (commit gộp 57 file; phần sửa bug nằm ở `src/repositories/customer.repository.js`) · test `TC-23 (BUG-003) tra cuu khach theo SDT tren CSDL that -> 200 va thay dung khach` PASS (ảnh `docs/screenshots/tc-bao-mat-hoi-quy-run.png`).
 
 ---
 
@@ -77,24 +80,27 @@ Lưu ý về commit sửa: BUG-002, BUG-003 và BUG-004 được sửa trong gia
    ```
 5. **Nguyên nhân:** tệp seed được tạo nhưng chưa bao giờ có nội dung.
 6. **Cách sửa:** viết seed thật (nhóm sự cố, nhân viên, khách, thiết bị, 3 phiếu kèm log) dùng khóa nghiệp vụ và `ON CONFLICT` / `WHERE NOT EXISTS`; `ORDER BY` để id cố định giữa các lần dựng.
-7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c (commit gộp; phần sửa bug này nằm ở `seeds/001_seed_data.sql`) · TC-12 PASS trên CSDL đã seed; trên CSDL chỉ có migration không có seed (tái hiện trạng thái lỗi) cả 5 kiểm đều FAIL (`Received: 0`). TC-11 (`db:setup` chạy hai lần, số dòng không đổi) PASS.
+7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/34a1a5c (commit gộp 57 file; phần sửa bug nằm ở `seeds/001_seed_data.sql`, `scripts/db-setup.js`, `migrations/002_triggers_and_auth.sql`) · test `TC-24 (BUG-004)` PASS: bốn bảng có dữ liệu mẫu và có đủ `ql1`, `nv1`, `nv2` (ảnh `docs/screenshots/tc-bao-mat-hoi-quy-run.png`); `db:setup` chạy lần hai không nhân đôi dữ liệu (ảnh `docs/screenshots/seed-rerun-counts.png`).
+
 
 ---
 
 ## BUG-005
 
-1. **Mã và mức độ:** BUG-005 · Critical. Phụ thuộc chạy thật có lỗ hổng bảo mật: `body-parser` (mức high, từ chối dịch vụ khi thân yêu cầu nén có byte thừa phía sau) xử lý thân JSON của mọi API, kèm `qs` (mức moderate).
+1. **Mã và mức độ:** BUG-005 · Major. Phụ thuộc chạy thật có lỗ hổng bảo mật theo `npm audit`: `body-parser` (mức high) xử lý thân JSON của các API, kèm `qs` (mức moderate).
 2. **Phát hiện bởi:** kiểm tra tĩnh `npm audit --omit=dev` ở đầu BT3 (công cụ phát hiện, không phải một test case; xem dòng 7 về kiểm chứng).
-3. **Triệu chứng:** `npm audit --omit=dev` báo 2 lỗ hổng (1 high, 1 moderate); một yêu cầu độc hại có thể làm API từ chối dịch vụ.
+3. **Triệu chứng:** `npm audit --omit=dev` báo 2 lỗ hổng: `body-parser` 2.0.0–2.3.0 (high, GHSA-27r3-jxmh-p828, từ chối dịch vụ khi thân yêu cầu nén có byte thừa phía sau) và `qs` 6.7.0–6.16.0 (moderate, GHSA-6pq8-jhm2-2vcw). Mức độ lấy theo advisory; em chưa khai thác thử trên hệ thống.
 4. **Cách tái lập:**
    ```
+   git clone https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh.git audit-before
+   cd audit-before
    git checkout 40146fd
    npm ci
    npm audit --omit=dev
    ```
 5. **Nguyên nhân:** `body-parser` và `qs` là phụ thuộc gián tiếp của Express; `package-lock.json` đang khóa ở phiên bản có lỗ hổng vì chưa ai chạy `npm audit` sau khi dựng.
 6. **Cách sửa:** chạy `npm audit fix` (không dùng `--force`), chỉ cập nhật `package-lock.json` lên bản đã vá.
-7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/11b667f (chỉ đổi `package-lock.json`) · `npm audit --omit=dev` → found 0 vulnerabilities; `npm test` vẫn PASS; ảnh trước và sau: `docs/screenshots/npm-audit-before.png`, `npm-audit-after.png`.
+7. **Commit và xác nhận:** https://github.com/doanxuantien2374802010493/smartcrm-2374802010493-tiep-nhan-bao-hanh/commit/11b667f (chỉ đổi `package-lock.json`) · `npm audit --omit=dev` → found 0 vulnerabilities; `npm test` vẫn PASS; ảnh trước (tại `40146fd`) và sau (chụp tại `f291b91`, đã gồm commit sửa): `docs/screenshots/npm-audit-before.png`, `npm-audit-after.png`.
 
 ---
 

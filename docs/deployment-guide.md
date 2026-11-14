@@ -126,7 +126,8 @@ Optional: run the seed a second time (`docker compose exec app npm run db:setup`
 | Need a full reset | | `docker compose down -v` |
 ## Known limitations
 
+- **The React front end is not started by Docker Compose.** Compose starts only `db` and `app` (the API). To run the screens, use a second terminal: `cd src/frontend && npm ci && npm run dev` (http://localhost:5173, which forwards `/api` to port 3000). The checks in "Verify it works" cover the API only.
 - **No API or screen to add a device record for a new customer.** A customer can be created (`POST /api/customers`), but devices exist only in the seed data. A ticket can be created only for an existing device (design change TD-12).
-- **Ticket status never moves past `MOI`.** The 15 endpoints include no call that changes a ticket's status after creation; the status log holds only the creation entry. This prototype covers intake and classification only.
-- **Demo accounts only.** Two users (`nv1` reception staff, `ql1` center manager) with one shared demo password from the seed data. Do not use them outside local development.
-- **Local HTTP only.** No TLS and no production deployment; the Docker Compose file starts `db` and `app` for local use.
+- **Ticket status never moves past `MOI`.** None of the 15 endpoints changes a ticket's status after creation; the status log holds only the creation entry. This prototype covers intake and classification only.
+- **Demo accounts only.** Two users (`nv1` reception staff, `ql1` center manager) share one demo password from the seed data. Do not use them outside local development.
+- **Local HTTP only.** No TLS and no production deployment; the Compose file is for local use.
